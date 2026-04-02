@@ -65,6 +65,8 @@ def initiate_stk_push(phone, amount=5000):
     response = requests.post(url, json=payload, headers=headers)
     return response.json()
 
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     unlocked = session.get("unlocked", False)
@@ -75,13 +77,24 @@ def index():
         action = request.form.get("action")
 
         if action == "pay":
-            phone = request.form.get("phone", "").strip()
+            raw_phone = request.form.get("phone", "").strip()
+            
+            # === DEBUG: See exactly what phone is received (check Render logs) ===
+            print(f"DEBUG - Raw phone received: '{raw_phone}'")
+
+            # Clean the phone number (remove spaces, dashes, plus, etc.)
+            phone = "".join(c for c in raw_phone if c.isdigit())
+
+            # Convert to full Kenyan format (254...)
             if phone.startswith("0"):
                 phone = "254" + phone[1:]
-            elif not phone.startswith("254"):
+            elif len(phone) == 9:          # e.g. 712345678
                 phone = "254" + phone
+            # else: already starts with 254 or is already full format
 
-            if phone and len(phone) == 12:
+            print(f"DEBUG - Cleaned phone: '{phone}' (length: {len(phone)})")
+
+            if phone.startswith("254") and len(phone) == 12:
                 try:
                     result = initiate_stk_push(phone)
                     if result.get("ResponseCode") == "0":
@@ -104,7 +117,7 @@ def index():
                 except Exception as e:
                     message = f"Failed to contact Daraja: {str(e)}"
             else:
-                message = "Please enter a valid Kenyan phone (e.g. 0712345678)"
+                message = "Please enter a valid Kenyan phone number (e.g. 0712345678 or 712345678)"
 
         elif action == "logout":
             session.clear()
@@ -208,10 +221,10 @@ def analyze():
     }[tone]
 
     signature = f"\nBest regards,\n{org_name}\nPhone: {org_phone}\nEmail: {org_email}"
-    preview = f"Subject: {subject or '(No subject)'}\n\n{body}\n{signature}"
+    preview = f"Subject: {subject or '(No subject)'}\n\n{body}\n{signaturero    
 
     return jsonify({
-        "preview": preview,
+        preview": preview,
         "report": report,
         "tone": tone,
         "tone_suggestion": tone_suggestion,
@@ -221,7 +234,7 @@ def analyze():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True)Enter                message = "Please enter a valid Kenyan phone (e.g. 0712345678)"
+    app.run(debug=True)Enter message = "Please enter a valid Kenyan phone (e.g. 0712345678)
 
         elif action == "logout":
             session.clear()
@@ -232,65 +245,6 @@ if __name__ == "__main__":
                          message=message,
                          payment_in_progress=payment_in_progress)
 
-@app.route("/api/check_status", methods=["GET"])
-def check_status():
-    phone = session.get("pending_phone")
-    if not phone:
-        return jsonify({"status": "none"})
 
-    conn = sqlite3.connect('payments.db')
-    c = conn.cursor()
-    c.execute('''
-        SELECT status FROM transactions 
-        WHERE phone = ? AND status IN ('paid', 'failed')
-        ORDER BY timestamp DESC LIMIT 1
-    ''', (phone,))
-    row = c.fetchone()
-    conn.close()
 
-    if row:
-        status = row[0]
-        if status == "paid":
-            session["unlocked"] = True
-        return jsonify({"status": status})
-    return jsonify({"status": "pending"})
-
-@app.route("/mpesa/callback", methods=["POST"])
-def mpesa_callback():
-    # (unchanged - keeps your callback working)
-    data = request.json
-    try:
-        callback = data["Body"]["stkCallback"]
-        checkout_id = callback.get("CheckoutRequestID")
-        result_code = callback.get("ResultCode")
-        status = "paid" if result_code == 0 else "failed"
-
-        conn = sqlite3.connect('payments.db')
-        c = conn.cursor()
-        c.execute('''
-            UPDATE transactions 
-            SET status = ?, merchant_request_id = ?
-            WHERE checkout_request_id = ?
-        ''', (status, callback.get("MerchantRequestID"), checkout_id))
-        conn.commit()
-        conn.close()
-    except:
-        pass
-    return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"}), 200
-
-# === YOUR ORIGINAL ANALYZE ROUTE (unchanged) ===
-@app.route("/api/analyze", methods=["POST"])
-def analyze():
-    if not session.get("unlocked", False):
-        return jsonify({"error": "Please complete payment to unlock the tool"}), 403
-
-    data = request.json
-    body = data.get("body", "")
-    comments = data.get("comments", "")
-    absent_mode = data.get("absentMode", False)
-    team_mode = data.get("teamMode", False)
-    subject = data.get("subject", "")
-    org_name = data.get("orgName", "[Your Organization]")
-    org_phone = data.get("orgPhone", "[Your Phone]")
-    org_email = data.get("orgEmail", "[Your Email]")
 
