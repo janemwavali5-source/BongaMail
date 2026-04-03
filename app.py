@@ -1,15 +1,76 @@
+from flask import Flask, render_template,
+import sqlite3
+from datetime import datetime
+import requests
+import base64
+import is
 
-    subject = data.get("subject", "")
-    org_name = data.get("orgName", "[Your Organization]")
-    org_phone = data.get("orgPhone", "[Your Phone]")
-    org_email = data.get("orgEmail", "[Your Email]")
+app = Flask(__name__)
+app.secret_key = is.environ.get("FLASK_SEC
 
-    body_lower = body.lower()
-    report = []
+# ============== DARAJA CONFIG (with fallback
+DARAJA_CONSUMER_KEY = os.environ.get("DARAJA
+DARAJA_CONSUMER_SECRET = os.environ.get
+DARAJA_SHORTCODE = "174379"
+DARAJA_PASSKEY = os.environ.get
+CALLBACK_URL = os.environ.get
+
+if "your_consumer_key_here" in DARAJA_CONSUMER_KEY
+    print("Using placeholder Daraja
+# =======================================
+
+def init_db():
+    Conn = sqlite3.connect('payments.db')
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS transaction
+            id INTEGER PRIMARY KEY AUTOINCREMENT
+            phone TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            checkout_request_id TEXT,
+            merchant_request_id TEXT,
+            timestamp TEXT NOT NULL,
+            status TEXT DEFAULT 'pending'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def get_access_token():
+    url = "https://sandbox.safaricom.co.ke
+    credentials = base64.b64encode(f"{DARAJA
+    headers = {"Authorization": f"Basic {
+    response = requests.get(url, headers=headers
+    return response.json().get("access
+
+def initiate_stk_push(phone, amount=5000):
+    token = get_access_token()
+    timestamp = datetime.now().strftime("%
+    password = base64.b64encode(f"{DARAJA
+
+    payload = {
+        "BusinessShortCode": DARAJA_SHORTCODE
+        "Password": password,
+        "Timestamp": timestamp,
+        "Transaction type": transactiontype,
+        "Amount": amount
+        "PartyA": phone,
+        "PartyB": DARAJA_SHORTCODE,
+        "PhoneNumber": phone,
+        "CallBackURL": CALLBACK_URL,
+        "AccountReference": "ToolUnlock202
+        "TransactionDesc": "Payment for
+    }
+    headers = {"Authorization": f"Bearer
+    url = "https://sandbox.safaricom.co.ke
+    response = requests.post(url, json
+    return response.json()
+
     
-    if "unsubscribe" not in body_lower:
-        report.append({"msg": "Consider adding an unsubscribe link (CAN-SPAM/GDPR requirement)", "severity": "warn"})
-    if "address" not in body_lower and "p.o.box" not in body_lower:
+         
+      if "address" not in body_lower and "p.o.box" not in body_lower:
         report.append({"msg": "Add physical address for commercial emails", "severity": "warn"})
     if any(x in body_lower for x in ["100%", "guarantee", "best in", "number one"]):
         report.append({"msg": "Avoid absolute claims like '100% guarantee' or 'best in world'", "severity": "issue"})
@@ -24,7 +85,7 @@
         tone = "friendly"
     elif any(w in body_lower for w in ["must", "immediately", "asap", "urgent", "now"]):
         tone = "urgent"
-    elif any(w in body_lower for w in ["regards", "sincerely", "best regards"]):
+    encerely", "be
         tone = "formal"
     
     tone_suggestion = {
