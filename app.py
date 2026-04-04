@@ -6,9 +6,10 @@ import base64
 import os
 
 app = Flask(__name__)
-app.secret_key = is.environ.get("FLASK_SEC
+app.secret_key = os.environ.get("FLASK_SEC
 
-# ============== DARAJA CONFIG (with fallback
+
+#  ============= DARAJA CONFIG (with fallback
 DARAJA_CONSUMER_KEY = os.environ.get("DARAJA
 DARAJA_CONSUMER_SECRET = os.environ.get
 DARAJA_SHORTCODE = "174379"
@@ -86,6 +87,29 @@ def initiate_stk_push(phone, amount=5000):
     else:
         message = "Daraja Error: {}".format(res
 
+@app.route("/api/check_status", methods=["
+def check_status():
+    phone = session.get("pending_phone")
+    if not phone:
+        return jsonify({"status": "none"})
+
+    Conn = sqlite3.connect('payments.db')
+    c = conn.cursor()
+    c.execute('''
+        SELECT status FROM transactions
+        WHERE phone = ? AND status IN ('payment
+        ORDER BY timestamp DESC LIMIT 1
+    ''', (phone,))
+    row = c.fetchone()
+    conn.close()
+
+    if row:
+        status = row[0]
+        if status == "paid":
+            session ["unlocked"] = True
+        return jsonify({"status": status})
+    return jsonify({"status": "pending"})
+       
 @app.route("/mpesa/callback", methods["POST","GET"]
 def mpesa_callback():
     """Simple M-Pesa callback - exactly as you asked"""
