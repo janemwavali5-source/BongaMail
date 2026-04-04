@@ -34,6 +34,8 @@ def init_db():
             status TEXT DEFAULT 'pending'
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS created_
     conn.commit()
     conn.close()
 
