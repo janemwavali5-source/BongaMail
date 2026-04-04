@@ -67,6 +67,26 @@ def initiate_stk_push(phone, amount=5000):
     url = "https://sandbox.safaricom.co.ke
     response = requests.post(url, json
     return response.json()
+    result = initiate_stk_push(phone)
+    if result.get("ResponseCode") == "0":
+        conn.sqlite3.connect('payments.db')
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO transactions
+            (phone, amount, checkout_request_id
+            VALUES (?,?,?,?,?)
+        ''',(phone, 5000, result.get("Checkout
+             datetime.now().strftime("%Y
+        conn.commit()
+        conn.close()
+
+        session["pending_phone"] = phone
+        message = "STK Push sent! Check your
+        payment_in_progress = True
+    else:
+        message = "Daraja Error: {}".format(res
+
+                                            
 
     
          
