@@ -86,59 +86,82 @@ def initiate_stk_push(phone, amount=5000):
     else:
         message = "Daraja Error: {}".format(res
 
-                                            
+@app.route("/api/analyze", methods=["POST
+def analyze ():
+    if not session.get("unlocked", False):
+        return jsonify({"error": "Please
 
-    
-         
-      if "address" not in body_lower and "p.o.box" not in body_lower:
-        report.append({"msg": "Add physical address for commercial emails", "severity": "warn"})
-    if any(x in body_lower for x in ["100%", "guarantee", "best in", "number one"]):
-        report.append({"msg": "Avoid absolute claims like '100% guarantee' or 'best in world'", "severity": "issue"})
-    if any(x in body_lower for x in ["limited time", "only today", "hurry", "last chance"]):
-        report.append({"msg": "Urgency claims must be truthful", "severity": "warn"})
-    
-    if not any(x in body_lower for x in ["click", "reply", "book", "schedule", "download", "sign up", "get started", "shop now", "learn more", "contact us", "book now"]):
-        report.append({"msg": "Weak or missing Call-to-Action", "severity": "issue"})
-    
-    tone = "neutral"
-    if any(w in body_lower for w in ["please", "thank", "appreciate", "kindly"]):
+    data = request.get_json(silent=True)
+    body = data.get("body", "")
+    comments = data.get("comments", "")
+    absent_mode data.get("absentMode",
+    team_mode = data.get("teamMode", False
+    subject = data.get("subject", "")
+    org_name = data.get("orgName", "[Your
+    org_phone = data.get("orgPhone", 
+    org_email = data.get("orgEmail",
+
+    body_lower = body.lower().strip()
+
+    # === CONFIGURABLE KEYWORD LISTS (easy
+    UNSUBSCRIBE_REQUIRED
+    ADDRESS_REQUIRED
+    HYPE_WORDS
+    URGENCY_WORDS
+    CTA_WORDS 
+
+    FRIENDLY_WORDS
+    URGENT_WORDS
+    FORMAL_WORDS
+
+    report = []
+
+    # Compliance checks
+    if not any(word in body_lower for word
+        report.append({"msg": "Add physical 
+
+    if not any(word in body_lower for word
+        report.append({"msg": "Avoid absolute 
+
+    if any(word in body_lower for word in
+        report.append({"msg": "Urgency else
+
+    if not any(word in body_lower for word
+        report.append({"msg": "Weak or
+
+    # Tone detection (priority: friendly
+    if any(word in body_lower for
         tone = "friendly"
-    elif any(w in body_lower for w in ["must", "immediately", "asap", "urgent", "now"]):
+    elif any(word in body_lower for word
         tone = "urgent"
-    encerely", "be
+    elif any(word in body_lower for word
         tone = "formal"
-    
-    tone_suggestion = {
-        "friendly": "Tone is friendly and approachable ✓",
-        "urgent": "Tone feels pushy – consider softening for better relationships",
-        "formal": "Tone is professional ✓ Consider adding warmth if targeting customers",
-        "neutral": "Add polite words (please/thank you) to improve connection"
+    else:
+        tone = "neutral"
+
+    tone suggestions = {
+        "friendly": "Tone is friendly and
+        "urgent": "Tone feels pushy - 
+        "formal": "Tone is professional
+        "neutral": "Add polite words
     }[tone]
 
-    signature = f"\nBest regards,\n{org_name}\nPhone: {org_phone}\nEmail: {org_email}"
-    preview = f"Subject: {subject or '(No subject)'}\n\n{body}\nsignature}"   
+    # Signature & preview
+    signature = f"\nBest regards, \n{org_name
+    preview = f"Subject: {subject or '(No
 
     return jsonify({
-        preview": preview,
+        "preview": preview,
         "report": report,
         "tone": tone,
-        "tone_suggestion": tone_suggestion,
+        "tone_suggestion": tone_suggestions,
         "absent_active": absent_mode,
         "team_active": team_mode,
         "comments": comments
     })
 
-if __name__ == "__main__":
-    app.run(debug=True)Enter message = "Please enter a valid Kenyan phone (e.g. 0712345678)
+    
 
-        elif action == "logout":
-            session.clear()
-            return redirect(url_for("index"))
-
-    return render_template("index.html", 
-                         unlocked=unlocked, 
-                         message=message,
-                         payment_in_progress=payment_in_progress)
 
 
 
