@@ -86,7 +86,27 @@ def initiate_stk_push(phone, amount=5000):
     else:
         message = "Daraja Error: {}".format(res
 
-@app.route("/api/analyze", methods=["POST
+@app.route("/mpesa/callback", methods["POST","GET"]
+def mpesa_callback():
+    """Simple M-Pesa callback - exactly as you asked"""
+    try:
+        payload = request.get_json()
+        print("M-PESA CALLBACK RECEIVED:")
+        print(payload)
+
+        # TODO: You can add DB update here later (mark subscription as paid)
+
+        return {
+            "ResultCode": 0,
+            "ResultDesc": "Success"
+        }
+    except Exception as e:
+        print("Callback error:",str
+        return {
+            "ResultCode": 0,
+            "ResultDesc": "Accepted"
+           
+@app.route("/api/analyze", methods=["POSTS 
 def analyze ():
     if not session.get("unlocked", False):
         return jsonify({"error": "Please
