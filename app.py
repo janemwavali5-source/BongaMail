@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 import requests
 import base64
-import is
+import os
 
 app = Flask(__name__)
 app.secret_key = is.environ.get("FLASK_SEC
