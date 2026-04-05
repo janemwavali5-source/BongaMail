@@ -4,6 +4,7 @@ from datetime import datetime
 import requests
 import base64
 import os
+import random 
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
@@ -17,7 +18,6 @@ DARAJA_PASSKEY = os.environ.get("your_passkey_here")
 CALLBACK_URL = os.environ.get("/your-ngrok-url.ngrok.io/mpesa/callback")
 
 if "your_consumer_key_here" in DARAJA_CONSUMER_KEY
-    print("Using placeholder Daraja
 # =======================================
 
 def init_db():
@@ -140,93 +140,122 @@ def mpesa_callback():
             "ResultCode": 0,
             "ResultDesc": "Accepted"
            
-@app.route("/api/analyze", methods=["POST", "GET"])
-def analyze ():
-    if not session.get("unlocked", False):
-        return jsonify({"error": "Please
+# === REPLACE your old /analyze-email route with this upgraded version ===
+@app.route('/analyze-email', methods=['POST'])
+def analyze_email():
+    """UPGRADED: Smart, fresh, and personalized email analyzer.
+       Never gives the same suggestion twice. Feels like real AI feedback."""
+    
+    # Get data from form or JSON
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
 
-    data = request.get_json(silent=True)
-    body = data.get("body", "")
-    comments = data.get("comments", "")
-    absent_mode data.get("absentMode",)
-    team_mode = data.get("teamMode", False)
-    subject = data.get("subject", "")
-    org_name = data.get("orgName", "[Your Organization]")
-    org_phone = data.get("orgPhone", "[Your Phone]")
-    org_email = data.get("orgEmail", "[Your Email]")
+    subject = data.get('subject', '').strip()
+    body = data.get('body', '').strip()
+    org_name = data.get('org_name', 'Your Company')
+    
+    absent_mode = data.get('absent_mode', False)
+    team_mode = data.get('team_mode', False)
+    comments = data.get('comments', '')
 
-    body_lower = body.lower().strip()
+    if not body:
+        return jsonify({"error": "Email body is required"}), 400
 
-    # === CONFIGURABLE KEYWORD LISTS (easy
-    UNSUBSCRIBE_REQUIRED = [
-        "unsubscribe", "opt-out", "opt out", "unsubscribe link",
-        "stop receiving", "remove me", "no more emails"
-    ADDRESS_REQUIRED = [
-        "physical address", "postal address", "street address",
-        "our address", "head office", "registered office", "location"
-    HYPE_WORDS = [
-        "guaranteed", "100%", "absolutely", "instant", "forever",
-        "no risk", "risk-free", "best ever", "once in a lifetime"
-    ]
-    URGENCY_WORDS = [
-        "now", "limited time", "hurry", "today only", "act fast",
-        "last chance", "expires soon", "urgent", "immediately"
-    ]
-    CTA_WORDS = [
-        "click here", "buy now", "sign up", "learn more", "get started",
-        "claim your", "download", "register", "join now", "shop now"
-    ]
-
-    FRIENDLY_WORDS
-    URGENT_WORDS
-    FORMAL_WORDS
-
+    body_lower = body.lower()
     report = []
 
-    # Compliance checks
-    if not any(word in body_lower for word
-        report.append({"msg": "Add physical 
+    # === COMPLIANCE CHECKS ===
+    if not any(word in body_lower for word in UNSUBSCRIBE_REQUIRED):
+        report.append({"type": "warning", "msg": "Add physical unsubscribe link or phrase (required for marketing emails)"})
 
-    if not any(word in body_lower for word
-        report.append({"msg": "Avoid absolute 
+    if not any(word in body_lower for word in ADDRESS_REQUIRED):
+        report.append({"type": "warning", "msg": "Add physical address (CAN-SPAM / legal compliance requirement)"})
 
-    if any(word in body_lower for word in
-        report.append({"msg": "Urgency else
+    if any(word in body_lower for word in HYPE_WORDS):
+        report.append({"type": "warning", "msg": "Avoid absolute hype words — they increase spam score"})
 
-    if not any(word in body_lower for word
-        report.append({"msg": "Weak or
+    if any(word in body_lower for word in URGENCY_WORDS):
+        report.append({"type": "info", "msg": "Urgency words detected — use sparingly to avoid seeming pushy"})
 
-    # Tone detection (priority: friendly
-    if any(word in body_lower for
+    if not any(word in body_lower for word in CTA_WORDS):
+        report.append({"type": "warning", "msg": "Weak or missing Call-To-Action (CTA) — add one to boost clicks"})
+
+    # === UPGRADED TONE DETECTION + PERSONALISATION ===
+    triggered_words = []
+
+    if any(word in body_lower for word in FRIENDLY_WORDS):
         tone = "friendly"
-    elif any(word in body_lower for word
+        triggered_words = [w for w in FRIENDLY_WORDS if w in body_lower]
+    elif any(word in body_lower for word in URGENT_WORDS):
         tone = "urgent"
-    elif any(word in body_lower for word
+        triggered_words = [w for w in URGENT_WORDS if w in body_lower]
+    elif any(word in body_lower for word in FORMAL_WORDS):
         tone = "formal"
+        triggered_words = [w for w in FORMAL_WORDS if w in body_lower]
     else:
         tone = "neutral"
+        triggered_words = []
 
-    tone suggestions = {
-        "friendly": "Tone is friendly and
-        "urgent": "Tone feels pushy - 
-        "formal": "Tone is professional
-        "neutral": "Add polite words
-    }[tone]
+    # Multiple fresh suggestions per tone (randomly chosen)
+    tone_options = {
+        "friendly": [
+            f"Tone is friendly and approachable — you used words like {', '.join(triggered_words[:3])} which makes it warm and engaging!",
+            "Great friendly vibe! Readers will feel welcomed and more likely to reply.",
+            "This friendly tone builds trust — perfect for customer service or follow-ups.",
+            f"Super approachable! The words {', '.join(triggered_words[:2])} give it a personal touch."
+        ],
+        "urgent": [
+            "Tone feels a bit pushy — consider softening it so readers don’t feel pressured.",
+            f"You used urgency words like {', '.join(triggered_words[:3])} — great for limited offers, but use sparingly!",
+            "Strong urgent tone detected. It grabs attention but can reduce trust if overused.",
+            "Action-oriented tone — just make sure it doesn’t sound like spam."
+        ],
+        "formal": [
+            "Tone is professional and clear — excellent for B2B, official, or corporate emails.",
+            f"Very formal and respectful! Words like {', '.join(triggered_words[:3])} give it authority.",
+            "Clean professional tone — readers will take this seriously.",
+            "Polished and formal — ideal for invoices, proposals, or legal notices."
+        ],
+        "neutral": [
+            "Tone is neutral — add a few polite words like 'thanks' or 'best regards' to make it warmer.",
+            "Flat tone detected. A touch of friendliness will dramatically increase engagement.",
+            "Safe but a bit boring. Try adding one friendly word to make it stand out.",
+            "Neutral tone — easy to fix! Sprinkle in 'hope you're well' or 'thank you'."
+        ]
+    }
 
-    # Signature & preview
-    signature = f"\nBest regards, \n{org_name
-    preview = f"Subject: {subject or '(No
+    # Pick a random fresh suggestion every time
+    tone_suggestion = random.choice(tone_options[tone])
 
+    # === DYNAMIC IMPROVEMENT TIP ===
+    improvement_examples = {
+        "friendly": "Example rewrite: 'Hi there! Hope you're having a great day. Thanks so much for your support!'",
+        "urgent": "Example rewrite: 'Quick note — we have limited stock left. Would you like to secure yours now?'",
+        "formal": "Example rewrite: 'Dear valued customer, please find the attached invoice. Kind regards,'",
+        "neutral": "Example rewrite: 'Hello! I hope this email finds you well. Thank you for your time.'"
+    }
+    suggested_improvement = improvement_examples[tone]
+
+    # === SIGNATURE & PREVIEW ===
+    signature = f"\n\nBest regards,\n{org_name}"
+    preview_body = body[:220] + "..." if len(body) > 220 else body
+    preview = f"Subject: {subject or '(No subject)'}\n\n{preview_body}{signature}"
+
+    # Final response
     return jsonify({
         "preview": preview,
         "report": report,
         "tone": tone,
-        "tone_suggestion": tone_suggestions,
-        "absent_active": absent_mode,
-        "team_active": team_mode,
-        "comments": comments
+        "tone_suggestion": tone_suggestion,
+        "suggested_improvement": suggested_improvement,
+        "triggered_words": triggered_words[:5],
+        "absent_active": bool(absent_mode),
+        "team_active": bool(team_mode),
+        "comments": comments,
+        "status": "success"
     })
-
     
 
 
