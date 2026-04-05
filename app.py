@@ -158,11 +158,24 @@ def analyze ():
     body_lower = body.lower().strip()
 
     # === CONFIGURABLE KEYWORD LISTS (easy
-    UNSUBSCRIBE_REQUIRED
-    ADDRESS_REQUIRED
-    HYPE_WORDS
-    URGENCY_WORDS
-    CTA_WORDS 
+    UNSUBSCRIBE_REQUIRED = [
+        "unsubscribe", "opt-out", "opt out", "unsubscribe link",
+        "stop receiving", "remove me", "no more emails"
+    ADDRESS_REQUIRED = [
+        "physical address", "postal address", "street address",
+        "our address", "head office", "registered office", "location"
+    HYPE_WORDS = [
+        "guaranteed", "100%", "absolutely", "instant", "forever",
+        "no risk", "risk-free", "best ever", "once in a lifetime"
+    ]
+    URGENCY_WORDS = [
+        "now", "limited time", "hurry", "today only", "act fast",
+        "last chance", "expires soon", "urgent", "immediately"
+    ]
+    CTA_WORDS = [
+        "click here", "buy now", "sign up", "learn more", "get started",
+        "claim your", "download", "register", "join now", "shop now"
+    ]
 
     FRIENDLY_WORDS
     URGENT_WORDS
