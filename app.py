@@ -384,7 +384,7 @@ def analyze_email():
         tone = "neutral"
 
     tone_options = {
-        "friendly": ["Tone is friendly and approachable — you used words like " + ", ".join(triggered_words[:3]) + " which makes it warm!"],
+        "friendly":["Tone is friendly and approachable — you used words like " + ", ".join(triggered_words[:3]) + " which makes it warm!"],
         "urgent": ["Tone feels a bit pushy — consider softening it"],
         "formal": ["Tone is professional and clear — excellent for B2B"],
         "neutral": ["Tone is neutral — add a few polite words to make it warmer"]
