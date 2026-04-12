@@ -18,6 +18,57 @@ CALLBACK_URL = os.environ.get("CALLBACK_URL")
 
 # ============== ADMIN PASSWORD (CHANGE THIS TO YOUR STRONG PASSWORD) ==============
 ADMIN_PASSWORD = "Bonga Mail 2030?"   # ← CHANGE THIS IMMEDIATELY!
+#===============ADMIN LOGIN & PANEL ==============
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    # If not logged in as admin
+    if not session.get("is_admin"):
+        if request.method == "POST":
+            if request.form.get("password") == ADMIN_PASSWORD:
+                session["is_admin"] = True
+                return redirect(url_for("admin"))
+            else:
+                return render_template("admin_login.html", error="Incorrect password")
+        return render_template("admin_login.html")
+
+    # Admin is logged in
+    if request.method == "POST":
+        phone = request.form.get("phone", "").strip()
+        trans_ref = request.form.get("trans_ref", "").strip()
+
+        if phone and trans_ref:
+            conn = sqlite3.connect('payments.db')
+            c = conn.cursor()
+            c.execute('''
+                UPDATE transactions 
+                SET status = 'paid', approved_at = ? 
+                WHERE phone = ? AND transaction_ref = ? AND status = 'pending'
+            ''', (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), phone, trans_ref))
+            rows = c.rowcount
+            conn.commit()
+            conn.close()
+
+            message = f"✅ Payment approved!" if rows > 0 else "❌ No pending payment found."
+        else:
+            message = "Please fill both fields."
+
+        return render_template("admin.html", message=message, pending=get_pending_payments())
+
+    return render_template("admin.html", pending=get_pending_payments())
+
+def get_pending_payments():
+    conn = sqlite3.connect('payments.db')
+    c = conn.cursor()
+    c.execute('''
+        SELECT phone, transaction_ref, timestamp 
+        FROM transactions 
+        WHERE status = 'pending' 
+        ORDER BY timestamp DESC
+    ''')
+    pending = c.fetchall()
+    conn.close()
+    return pending
+
 
 # ============== WORD LISTS FOR EMAIL ANALYZER ==============
 UNSUBSCRIBE_REQUIRED = ["unsubscribe", "un-subscribe", "opt out"]
