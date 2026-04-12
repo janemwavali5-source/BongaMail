@@ -32,29 +32,31 @@ def admin():
         return render_template("admin_login.html")
 
     # Admin is logged in
+    message = None
     if request.method == "POST":
         phone = request.form.get("phone", "").strip()
         trans_ref = request.form.get("trans_ref", "").strip()
 
         if phone and trans_ref:
-            conn = sqlite3.connect('payments.db')
-            c = conn.cursor()
-            c.execute('''
-                UPDATE transactions 
-                SET status = 'paid', approved_at = ? 
-                WHERE phone = ? AND transaction_ref = ? AND status = 'pending'
-            ''', (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), phone, trans_ref))
-            rows = c.rowcount
-            conn.commit()
-            conn.close()
+            try:
+                conn = sqlite3.connect('payments.db')
+                c = conn.cursor()
+                c.execute('''
+                    UPDATE transactions 
+                    SET status = 'paid', approved_at = ? 
+                    WHERE phone = ? AND transaction_ref = ? AND status = 'pending'
+                ''', (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), phone, trans_ref))
+                rows = c.rowcount
+                conn.commit()
+                conn.close()
 
-            message = f"✅ Payment approved!" if rows > 0 else "❌ No pending payment found."
-        else:
-            message = "Please fill both fields."
+            message = f"✅ Payment for {phone} approved!" if rows > 0 else "❌ No pending payment found."
+        except Exception as e:
+            message = f"Error: {str(e)}"
+    else:
+        message = "Please fill both fields."
 
-        return render_template("admin.html", message=message, pending=get_pending_payments())
-
-    return render_template("admin.html", pending=get_pending_payments())
+# Get pending payments       
 
 def get_pending_payments():
     conn = sqlite3.connect('payments.db')
