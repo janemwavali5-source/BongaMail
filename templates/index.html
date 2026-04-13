@@ -33,160 +33,115 @@
                 <input type="tel" name="phone" id="phone" 
                        class="w-full px-5 py-4 text-lg border border-gray-300 rounded-2xl focus:outline-none focus:border-green-500"
                        placeholder="0712345678" required>
-                <button type="submit" id="pay-btn"
+                <button type="submit" 
                         class="mt-8 w-full bg-[#00A651] text-white font-semibold py-5 rounded-2xl text-lg flex items-center justify-center gap-2">
                     <i class="fas fa-mobile-alt"></i>
                     Pay KSh 5,000 with M-Pesa
                 </button>
             </form>
-
-            {% if payment_in_progress %}
-            <div class="mt-8 text-center">
-                <div class="flex justify-center items-center gap-3 text-gray-600">
-                    <div class="animate-spin h-6 w-6 border-4 border-gray-400 border-t-transparent rounded-full"></div>
-                    <span>Waiting for your M-Pesa payment...</span>
-                </div>
-                <button onclick="checkStatus()" class="mt-6 px-8 py-3 border border-gray-300 rounded-2xl hover:bg-gray-50">
-                    🔄 Check Payment Status
-                </button>
-            </div>
-            {% endif %}
         </div>
         {% endif %}
 
         <!-- UNLOCKED ANALYZER -->
         {% if unlocked %}
         <div class="px-8 py-8">
-            <h3 class="font-semibold text-xl mb-4">✍️ Compose Your Email</h3>
+            <h3 class="font-semibold text-xl mb-6">✍️ Compose Your Email</h3>
 
-            <!-- Templates -->
-            <div class="mb-6">
-                <p class="text-sm font-medium text-gray-600 mb-3">Choose a template to start:</p>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="template-container">
-                    <!-- Buttons created by JavaScript -->
+            <!-- Simple Template Buttons -->
+            <div class="mb-8">
+                <p class="text-sm font-medium text-gray-600 mb-4">Quick Templates:</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <form method="POST" action="/load_template">
+                        <input type="hidden" name="template_id" value="0">
+                        <button type="submit" 
+                                class="w-full text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                            <strong>Marketing Offer</strong><br>
+                            <small class="text-gray-500">Promote a product or service</small>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="/load_template">
+                        <input type="hidden" name="template_id" value="1">
+                        <button type="submit" 
+                                class="w-full text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                            <strong>Follow-up Email</strong><br>
+                            <small class="text-gray-500">Follow up after a meeting</small>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="/load_template">
+                        <input type="hidden" name="template_id" value="2">
+                        <button type="submit" 
+                                class="w-full text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                            <strong>Newsletter</strong><br>
+                            <small class="text-gray-500">Monthly update</small>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="/load_template">
+                        <input type="hidden" name="template_id" value="3">
+                        <button type="submit" 
+                                class="w-full text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                            <strong>Thank You</strong><br>
+                            <small class="text-gray-500">Thank customer</small>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="/load_template">
+                        <input type="hidden" name="template_id" value="4">
+                        <button type="submit" 
+                                class="w-full text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                            <strong>Invoice Request</strong><br>
+                            <small class="text-gray-500">Payment request</small>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="/load_template">
+                        <input type="hidden" name="template_id" value="5">
+                        <button type="submit" 
+                                class="w-full text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                            <strong>Meeting Invitation</strong><br>
+                            <small class="text-gray-500">Schedule a call</small>
+                        </button>
+                    </form>
                 </div>
             </div>
 
             <!-- Compose Form -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div>
-                    <div class="space-y-6">
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Subject</label>
-                            <input type="text" id="subject" 
-                                   class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
-                                   placeholder="Enter subject line...">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium mb-2">Email Body</label>
-                            <textarea id="body" rows="12"
-                                      class="w-full px-4 py-3 border border-gray-300 rounded-3xl focus:outline-none focus:border-blue-500 resize-y text-base leading-relaxed"
-                                      placeholder="Write or edit your email here..."></textarea>
-                        </div>
-                        <div class="flex gap-4">
-                            <button onclick="runAnalysis()" 
-                                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl text-lg">
-                                🔍 Analyze Email
-                            </button>
-                            <button onclick="copyToGmail()" 
-                                    class="flex-1 bg-[#00A651] hover:bg-green-700 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2">
-                                📧 Copy to Gmail / Outlook
-                            </button>
+            <form id="analyze-form" method="POST" action="/analyze-email">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Subject</label>
+                        <input type="text" name="subject" id="subject" 
+                               class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
+                               placeholder="Enter subject line...">
+
+                        <label class="block text-sm font-medium mb-2 mt-6">Email Body</label>
+                        <textarea name="body" id="body" rows="12"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-3xl focus:outline-none focus:border-blue-500 resize-y text-base leading-relaxed"
+                                  placeholder="Write or edit your email here..."></textarea>
+
+                        <button type="submit" 
+                                class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl text-lg">
+                            🔍 Analyze Email
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 rounded-3xl p-6">
+                        <p class="text-xs uppercase text-gray-500 mb-3">Live Preview</p>
+                        <div id="live-preview" class="bg-white border border-gray-200 rounded-2xl p-6 min-h-[380px] text-sm leading-relaxed whitespace-pre-wrap">
+                            Your email preview will appear here...
                         </div>
                     </div>
                 </div>
-
-                <!-- Live Preview -->
-                <div class="bg-gray-50 border border-gray-200 rounded-3xl p-6">
-                    <p class="text-xs uppercase text-gray-500 mb-3">Live Preview</p>
-                    <div id="live-preview" class="bg-white border border-gray-200 rounded-2xl p-6 min-h-[380px] text-sm leading-relaxed whitespace-pre-wrap">
-                        Your email preview will appear here...
-                    </div>
-                </div>
-            </div>
-
-            <div id="results" class="mt-12 hidden"></div>
-        </div>
-
-        <div class="px-8 py-6 border-t text-center">
-            <a onclick="logout()" class="text-red-600 hover:text-red-700 cursor-pointer text-sm font-medium">
-                Logout & Lock Tool
-            </a>
+            </form>
         </div>
         {% endif %}
     </div>
 
     <script>
-        // Tailwind
-        tailwind.config = { content: ["*"] };
-
-        // Templates
-        const templates = [
-            { name: "Marketing Offer", subject: "Special Offer: 20% Off This Week Only!", body: "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount: [Link]\n\nBest regards,\nYour Company" },
-            { name: "Follow-up Email", subject: "Follow-up on Our Meeting", body: "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up on the action points we discussed.\n\nLet me know if you need any further information.\n\nBest regards,\nYour Company" },
-            { name: "Newsletter", subject: "Monthly Newsletter – March 2026", body: "Dear valued customer,\n\nHere’s what’s new this month at our company...\n\n[Content]\n\nWe appreciate your continued support!\n\nBest regards,\nYour Company" },
-            { name: "Thank You", subject: "Thank You for Your Purchase!", body: "Hi [Name],\n\nThank you so much for choosing us! Your order has been processed and is on the way.\n\nWe hope you love it!\n\nBest regards,\nYour Company" },
-            { name: "Invoice", subject: "Invoice #INV-2026-045 – Payment Due", body: "Dear [Name],\n\nPlease find attached your invoice for March services.\n\nTotal due: KSh 12,500\nPayment due by: 15th April 2026\n\nThank you for your prompt payment!\n\nBest regards,\nYour Company" },
-            { name: "Meeting Invitation", subject: "Invitation: Let’s Schedule a Quick Call", body: "Hi [Name],\n\nI’d love to schedule a quick 15-minute call to discuss how we can help your business grow.\n\nAre you free next week?\n\nBest regards,\nYour Company" }
-        ];
-
-        function createTemplates() {
-            const container = document.getElementById('template-container');
-            if (!container) return;
-
-            container.innerHTML = '';
-            templates.forEach((tpl, index) => {
-                const btn = document.createElement('button');
-                btn.className = "text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition";
-                btn.innerHTML = `<strong>${tpl.name}</strong><br><small class="text-gray-500">Click to load</small>`;
-                btn.addEventListener('click', () => loadTemplate(index));
-                container.appendChild(btn);
-            });
-        }
-
-        function loadTemplate(index) {
-            console.log(`✅ Template ${index} clicked`);
-            document.getElementById('subject').value = templates[index].subject;
-            document.getElementById('body').value = templates[index].body;
-            updateLivePreview();
-        }
-
-        function updateLivePreview() {
-            const subject = document.getElementById('subject').value.trim() || "(No subject)";
-            const body = document.getElementById('body').value.trim() || "Your email body will appear here...";
-            const preview = document.getElementById('live-preview');
-            preview.innerHTML = `<strong>Subject:</strong> \( {subject}<br><br> \){body.replace(/\n/g, '<br>')}<br><br>Best regards,<br>Your Company`;
-        }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log("✅ JavaScript fully loaded");
-            createTemplates();
-            updateLivePreview();
-
-            // Optional: auto-analyze button can be improved later
-        });
-
-        // Placeholder functions
-        async function runAnalysis() {
-            alert("Analysis started! (Backend connected)");
-        }
-
-        function copyToGmail() {
-            alert("Copied to clipboard (ready for Gmail)");
-        }
-
-        function checkStatus() {
-            fetch('/api/check_status').then(r => r.json()).then(data => {
-                if (data.status === 'paid') location.reload();
-            });
-        }
-
-        function logout() {
-            fetch('/', { method: 'POST', body: new URLSearchParams({ action: 'logout' }) })
-                .then(() => location.reload());
-        }
+        console.log("✅ Simple version loaded - No complex JS");
     </script>
-</body>
+</body> 
 </html>
                     
