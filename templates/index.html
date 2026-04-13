@@ -144,8 +144,11 @@
     </div>
 
     <script>
-        // Tailwind
-        tailwind.config = { content: ["*"] };
+        // Initialize Tailwind
+        function initTailwind() {
+            tailwind.config = { content: ["*"] };
+        }
+        initTailwind();
 
         // Email Templates
         const templates = [
@@ -158,6 +161,8 @@
         ];
 
         function loadTemplate(index) {
+            if (index < 0 || index >= templates.length) return;
+            
             document.getElementById('subject').value = templates[index].subject;
             document.getElementById('body').value = templates[index].body;
             updateLivePreview();
@@ -168,8 +173,15 @@
             const subject = document.getElementById('subject').value.trim() || "(No subject)";
             const body = document.getElementById('body').value.trim() || "Your email body will appear here...";
             const previewDiv = document.getElementById('live-preview');
-            previewDiv.innerHTML = `<strong>Subject:</strong> ${subject}<br><br>${body.replace(/\n/g, '<br>')}<br><br>Best regards,<br>Your Company`;
+            
+            previewDiv.innerHTML = `
+                <strong>Subject:</strong> ${subject}<br><br>
+                ${body.replace(/\n/g, '<br>')}<br><br>
+                Best regards,<br>Your Company
+            `;
         }
+
+        // Attach live preview listeners
         document.getElementById('subject').addEventListener('input', updateLivePreview);
         document.getElementById('body').addEventListener('input', updateLivePreview);
 
@@ -177,25 +189,30 @@
         function copyToGmail() {
             const subject = document.getElementById('subject').value.trim() || "(No subject)";
             const body = document.getElementById('body').value.trim();
-            const fullEmail = `Subject: ${subject}\n\n${body}\n\nBest regards,\nYour Company`;
+            const fullEmail = `Subject: \( {subject}\n\n \){body}\n\nBest regards,\nYour Company`;
+            
             navigator.clipboard.writeText(fullEmail).then(() => {
-                alert("✅ Copied! Paste directly into Gmail, Outlook, or any email app.");
+                alert("✅ Copied successfully! Paste into Gmail, Outlook, or any email client.");
+            }).catch(() => {
+                alert("Failed to copy. Please copy manually.");
             });
         }
 
-        // Run Analysis (your existing function)
+        // Run Analysis
         async function runAnalysis() {
             const bodyText = document.getElementById('body').value.trim();
-            if (!bodyText) return alert("Please write something in the email body");
+            if (!bodyText) {
+                return alert("Please write something in the email body");
+            }
 
             const payload = {
-                subject: document.getElementById('subject').value,
+                subject: document.getElementById('subject').value || "",
                 body: bodyText,
                 org_name: "Your Company"
             };
 
             const btn = document.querySelector('button[onclick="runAnalysis()"]');
-            const original = btn.textContent;
+            const originalText = btn.textContent;
             btn.textContent = "Analyzing...";
             btn.disabled = true;
 
@@ -205,39 +222,63 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+
                 const data = await res.json();
 
-                let html = `<div class="border rounded-3xl p-6">`;
+                let html = `<div class="border rounded-3xl p-6 bg-white">`;
                 html += `<h4 class="font-semibold text-lg mb-4">📊 Analysis Report</h4>`;
-                html += `<pre class="bg-gray-100 p-4 rounded-2xl text-sm overflow-auto mb-6">${data.preview}</pre>`;
+                html += `<pre class="bg-gray-100 p-4 rounded-2xl text-sm overflow-auto mb-6">${data.preview || 'No preview available'}</pre>`;
 
-                data.report.forEach(item => {
-                    html += `<div class="flex gap-3 mb-3"><span class="text-${item.type === 'warning' ? 'red' : 'amber'}-500">●</span><p class="text-sm">${item.msg}</p></div>`;
-                });
+                if (data.report && data.report.length > 0) {
+                    data.report.forEach(item => {
+                        const color = item.type === 'warning' ? 'red' : 'amber';
+                        html += `<div class="flex gap-3 mb-3"><span class="text-\( {color}-500">●</span><p class="text-sm"> \){item.msg}</p></div>`;
+                    });
+                }
 
-                html += `<div class="mt-6 p-4 bg-gray-50 rounded-2xl"><p class="font-medium">Tone: <span class="capitalize">${data.tone}</span></p><p>${data.tone_suggestion}</p></div>`;
+                if (data.tone) {
+                    html += `<div class="mt-6 p-4 bg-gray-50 rounded-2xl">
+                        <p class="font-medium">Tone Detected: <span class="capitalize">${data.tone}</span></p>
+                        <p class="text-sm mt-1">${data.tone_suggestion || ''}</p>
+                    </div>`;
+                }
+
                 html += `</div>`;
 
                 document.getElementById('results').innerHTML = html;
                 document.getElementById('results').classList.remove('hidden');
             } catch (e) {
-                alert("Analysis failed. Please try again.");
+                console.error(e);
+                alert("Analysis failed. Please check your connection and try again.");
             }
 
-            btn.textContent = original;
+            btn.textContent = originalText;
             btn.disabled = false;
         }
 
         function checkStatus() {
-            fetch('/api/check_status').then(r => r.json()).then(data => {
-                if (data.status === 'paid') location.reload();
-            });
+            fetch('/api/check_status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'paid') {
+                        location.reload();
+                    }
+                })
+                .catch(() => console.log("Status check failed"));
         }
 
         function logout() {
-            fetch('/', { method: 'POST', body: new URLSearchParams({ action: 'logout' }) })
-                .then(() => location.reload());
+            fetch('/', { 
+                method: 'POST', 
+                body: new URLSearchParams({ action: 'logout' }) 
+            }).then(() => location.reload());
         }
+
+        // Initialize live preview on load
+        window.onload = function() {
+            updateLivePreview();
+            console.log("✅ HTML & JavaScript loaded successfully");
+        };
     </script>
 </body>
-</html>
+    </html>
