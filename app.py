@@ -56,7 +56,13 @@ def admin():
     else:
         message = "Please fill both fields."
 
-# Get pending payments       
+# Get pending payments   
+try:
+    pending = get_pending_payments()
+except:
+    pending = []
+
+return render_template("admin.html", message=message, pending=pending)
 
 def get_pending_payments():
     conn = sqlite3.connect('payments.db')
