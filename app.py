@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, jsonify, redirect, url_for
+btn.classNamefrom flask import Flask, render_template, request, session, jsonify, redirect, url_for
 import sqlite3
 from datetime import datetime
 import requests
@@ -158,6 +158,28 @@ def initiate_stk_push(phone, amount=5000):
     url = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
     response = requests.post(url, json=payload, headers=headers)
     return response.json()
+
+@app.route("/load_template", methods=["POST"])
+def load_template():
+    template_id = int(request.form.get("template_id", 0))
+    
+    templates = [
+        {"subject": "Special Offer: 20% Off This Week Only!", "body": "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount: [Link]\n\nBest regards,\nYour Company"},
+        {"subject": "Follow-up on Our Meeting", "body": "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up on the action points we discussed.\n\nLet me know if you need any further information.\n\nBest regards,\nYour Company"},
+        {"subject": "Monthly Newsletter – March 2026", "body": "Dear valued customer,\n\nHere’s what’s new this month at our company...\n\n[Content]\n\nWe appreciate your continued support!\n\nBest regards,\nYour Company"},
+        {"subject": "Thank You for Your Purchase!", "body": "Hi [Name],\n\nThank you so much for choosing us! Your order has been processed and is on the way.\n\nWe hope you love it!\n\nBest regards,\nYour Company"},
+        {"subject": "Invoice #INV-2026-045 – Payment Due", "body": "Dear [Name],\n\nPlease find attached your invoice for March services.\n\nTotal due: KSh 12,500\nPayment due by: 15th April 2026\n\nThank you for your prompt payment!\n\nBest regards,\nYour Company"},
+        {"subject": "Invitation: Let’s Schedule a Quick Call", "body": "Hi [Name],\n\nI’d love to schedule a quick 15-minute call to discuss how we can help your business grow.\n\nAre you free next week?\n\nBest regards,\nYour Company"}
+    ]
+    
+    selected = templates[template_id]
+    
+    # For now, just redirect back with the data (we can improve this later)
+    return render_template("index.html", 
+                         unlocked=session.get("unlocked", False),
+                         message=f"Template loaded: {selected['subject']}",
+                         # We can pass the template data if needed
+    )
 
 # ============== MAIN ROUTES ==============
 @app.route("/", methods=["GET", "POST"])
