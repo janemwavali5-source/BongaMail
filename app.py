@@ -215,7 +215,7 @@ def index():
 @app.route("/owner/unlock", methods=["GET"])
 def owner_unlock():
     # Change this secret key to something only YOU know
-    SECRET_KEY = "mysecretownerkey2026"   # ← CHANGE THIS TO YOUR OWN SECRET!
+    SECRET_KEY = "BongaMail2030?"   # ← CHANGE THIS TO YOUR OWN SECRET!
 
     provided_key = request.args.get("key")
     
