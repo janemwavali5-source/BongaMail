@@ -1,4 +1,4 @@
-flask import Flask, render_template, request, session, jsonify, redirect, url_for
+from flask import Flask, render_template, request, session, jsonify, redirect, url_for
 import sqlite3
 from datetime import datetime
 import requests
