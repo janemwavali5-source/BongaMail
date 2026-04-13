@@ -50,19 +50,20 @@ def admin():
                 conn.commit()
                 conn.close()
 
-            message = f"✅ Payment for {phone} approved!" if rows > 0 else "❌ No pending payment found."
-        except Exception as e:
-            message = f"Error: {str(e)}"
-    else:
-        message = "Please fill both fields."
+                message = f"✅ Payment for {phone} approved!" if rows > 0 else "❌ No pending payment found."
+            except Exception as e:
+                message = f"Error: {str(e)}"
+        else:
+            message = "Please fill both fields."
 
-# Get pending payments   
-try:
-    pending = get_pending_payments()
-except:
-    pending = []
+    # Get pending payments   
+    try:
+        pending = get_pending_payments()
+    except:
+        pending = []
 
-return render_template("admin.html", message=message, pending=pending)
+    return render_template("admin.html", message=message, pending=pending)
+
 
 def get_pending_payments():
     conn = sqlite3.connect('payments.db')
