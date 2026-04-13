@@ -211,6 +211,28 @@ def index():
                          message=message,
                          payment_in_progress=payment_in_progress)
 
+# ============== OWNER / CREATOR BYPASS (FOR TESTING) ==============
+@app.route("/owner/unlock", methods=["GET"])
+def owner_unlock():
+    # Change this secret key to something only YOU know
+    SECRET_KEY = "mysecretownerkey2026"   # ← CHANGE THIS TO YOUR OWN SECRET!
+
+    provided_key = request.args.get("key")
+    
+    if provided_key == SECRET_KEY:
+        session["unlocked"] = True
+        session["pending_phone"] = "254700000000"  # Fake phone for testing
+        return """
+            <h2>✅ Owner Mode Activated!</h2>
+            <p>You now have full access to the Email Analyzer.</p>
+            <p><a href="/">Go to Homepage</a></p>
+        """
+    else:
+        return """
+            <h2>Access Denied</h2>
+            <p>Invalid key. You are not authorized.</p>
+        """, 403
+
 @app.route("/api/check_status", methods=["GET"])
 def check_status():
     phone = session.get("pending_phone")
