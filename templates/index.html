@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bonga Mail - Email Analysis Tool</title>
+    <title>Email Analysis Pro • KSh 5,000</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -12,195 +12,99 @@
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <div class="max-w-4xl mx-auto mt-8 bg-white rounded-3xl shadow-xl overflow-hidden">
+    <div class="max-w-5xl mx-auto mt-8 bg-white rounded-3xl shadow-xl overflow-hidden">
 
-        <!-- Header -->
         <div class="px-8 pt-8 pb-4 border-b flex justify-between items-center">
-            <h1 class="text-3xl font-semibold">Bonga Mail</h1>
-            <div class="text-sm bg-gray-100 px-4 py-2 rounded-2xl font-medium">KSh 5,000 • One-time unlock</div>
+            <h1 class="text-3xl font-semibold">📧 Email Analysis Pro</h1>
+            <div class="text-sm bg-amber-100 text-amber-700 px-5 py-2 rounded-2xl font-medium">KSh 5,000 • One-time unlock</div>
         </div>
 
         {% if message %}
         <div class="mx-8 mt-6 p-4 rounded-2xl bg-blue-50 text-blue-700">{{ message }}</div>
         {% endif %}
 
-        <!-- PAYMENT SECTION (Manual Mode) -->
+        <!-- PAYMENT SECTION -->
         {% if not unlocked %}
-        <div class="px-8 py-10">
-            <h2 class="text-xl font-semibold mb-6 text-center">Complete Payment to Unlock</h2>
-            
-            <form method="POST" class="max-w-md mx-auto space-y-6">
-                <input type="hidden" name="action" value="unlock">
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Phone Number</label>
-                    <input type="tel" name="phone" 
-                           class="w-full px-5 py-4 text-lg border border-gray-300 rounded-2xl focus:outline-none focus:border-green-500"
-                           placeholder="0712345678" required>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">M-Pesa Transaction Reference</label>
-                    <input type="text" name="trans_ref" 
-                           class="w-full px-5 py-4 text-lg border border-gray-300 rounded-2xl focus:outline-none focus:border-green-500"
-                           placeholder="RKT1234567" required>
-                </div>
-
-                <button type="submit" 
-                        class="w-full bg-[#00A651] text-white font-semibold py-5 rounded-2xl text-lg flex items-center justify-center gap-2">
-                    <i class="fas fa-check"></i>
-                    I Have Paid - Submit Details
+        <div class="px-8 py-12 text-center">
+            <h2 class="text-2xl font-semibold mb-3">Unlock Full Access</h2>
+            <p class="text-gray-600 mb-8">12 pro templates, detailed analysis, history &amp; reports</p>
+            <form method="POST">
+                <input type="hidden" name="action" value="pay">
+                <input type="tel" name="phone" class="w-full max-w-md mx-auto px-5 py-4 text-lg border border-gray-300 rounded-2xl focus:outline-none focus:border-green-500" placeholder="0712345678" required>
+                <button type="submit" class="mt-8 w-full max-w-md mx-auto bg-[#00A651] text-white font-semibold py-5 rounded-2xl text-lg">
+                    Pay KSh 5,000 with M-Pesa
                 </button>
             </form>
-
-            <p class="text-center text-xs text-gray-500 mt-8">
-                Send KSh 5,000 to your Equity Till, then enter the transaction reference above.
-            </p>
         </div>
         {% endif %}
 
-        <!-- UNLOCKED: COMPOSE AREA -->
+        <!-- UNLOCKED SECTION -->
         {% if unlocked %}
         <div class="px-8 py-8">
             <h3 class="font-semibold text-xl mb-6">✍️ Compose Your Email</h3>
 
-            <!-- Email Templates -->
-            <div class="mb-8">
-                <p class="text-sm font-medium text-gray-600 mb-4">Quick Templates:</p>
+            <!-- Templates -->
+            <div class="mb-10">
+                <p class="text-sm font-medium text-gray-600 mb-4">Choose a Template</p>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <button onclick="loadTemplate(0)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Marketing Offer</strong><br>
-                        <small class="text-gray-500">Promote a product</small>
-                    </button>
-                    <button onclick="loadTemplate(1)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Follow-up</strong><br>
-                        <small class="text-gray-500">After meeting</small>
-                    </button>
-                    <button onclick="loadTemplate(2)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Newsletter</strong><br>
-                        <small class="text-gray-500">Monthly update</small>
-                    </button>
-                    <button onclick="loadTemplate(3)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Thank You</strong><br>
-                        <small class="text-gray-500">After purchase</small>
-                    </button>
-                    <button onclick="loadTemplate(4)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Invoice</strong><br>
-                        <small class="text-gray-500">Payment request</small>
-                    </button>
-                    <button onclick="loadTemplate(5)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Meeting Invite</strong><br>
-                        <small class="text-gray-500">Schedule a call</small>
-                    </button>
+                    {% for i in range(12) %}
+                    <form method="POST" action="/load_template">
+                        <input type="hidden" name="template_id" value="{{ i }}">
+                        <button type="submit" class="w-full text-left p-5 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                            <strong>{{ ['Marketing Offer','Follow-up Email','Newsletter','Thank You','Invoice Request','Meeting Invitation','Promotion Reminder','Job Application','Partnership Proposal','Customer Feedback','Event Invitation','Price Increase Notice'][i] }}</strong><br>
+                            <small class="text-gray-500">{{ ['Promote a product','Follow up after meeting','Monthly update','Thank customer','Payment request','Schedule call','Reminder for offer','Job application','Partnership proposal','Ask for feedback','Event invitation','Announce price change'][i] }}</small>
+                        </button>
+                    </form>
+                    {% endfor %}
                 </div>
             </div>
 
-            <!-- Compose Form -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Subject</label>
-                    <input type="text" id="subject" 
-                           class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
-                           placeholder="Enter subject line...">
+            <!-- Analysis Form -->
+            <form method="POST" action="/analyze-email">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Subject Line</label>
+                        <input type="text" name="subject" class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 text-lg" placeholder="Enter subject line...">
 
-                    <label class="block text-sm font-medium mb-2 mt-6">Email Body</label>
-                    <textarea id="body" rows="12"
-                              class="w-full px-4 py-3 border border-gray-300 rounded-3xl focus:outline-none focus:border-blue-500 resize-y text-base leading-relaxed"
-                              placeholder="Write or edit your email here..."></textarea>
+                        <label class="block text-sm font-medium mb-2 mt-6">Email Body</label>
+                        <textarea name="body" rows="14" class="w-full px-4 py-3 border border-gray-300 rounded-3xl focus:outline-none focus:border-blue-500 resize-y text-base leading-relaxed" placeholder="Paste or write your email here..."></textarea>
 
-                    <div class="flex gap-4 mt-6">
-                        <button onclick="runAnalysis()" 
-                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl text-lg">
-                            🔍 Analyze Email
-                        </button>
-                        <button onclick="copyToGmail()" 
-                                class="flex-1 bg-[#00A651] hover:bg-green-700 text-white font-semibold py-4 rounded-2xl text-lg">
-                            📧 Copy to Gmail
+                        <button type="submit" class="mt-8 w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl text-lg">
+                            🔍 Analyze This Email
                         </button>
                     </div>
-                </div>
 
-                <!-- Live Preview -->
-                <div class="bg-gray-50 border border-gray-200 rounded-3xl p-6">
-                    <p class="text-xs uppercase text-gray-500 mb-3">Live Preview</p>
-                    <div id="live-preview" class="bg-white border border-gray-200 rounded-2xl p-6 min-h-[380px] text-sm leading-relaxed whitespace-pre-wrap">
-                        Your email preview will appear here...
+                    <div>
+                        <p class="text-xs uppercase text-gray-500 mb-3">Live Preview</p>
+                        <div class="bg-white border border-gray-200 rounded-2xl p-6 min-h-[380px] text-sm leading-relaxed whitespace-pre-wrap border-dashed">
+                            Your preview will appear here after analysis.
+                        </div>
                     </div>
                 </div>
+            </form>
+
+            <!-- History -->
+            <div class="mt-16">
+                <h3 class="font-semibold text-lg mb-4">📚 Your Analysis History</h3>
+                {% if history %}
+                <div class="space-y-6">
+                    {% for item in history %}
+                    <div class="border border-gray-200 rounded-2xl p-6">
+                        <div class="flex justify-between">
+                            <p class="font-medium">{{ item[1] }}</p>
+                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">Score: {{ item[4] }}/100</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-2">{{ item[2][:150] }}...</p>
+                        <p class="text-xs text-gray-500 mt-3">{{ item[3] }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500">No analyses yet. Create your first one above.</p>
+                {% endif %}
             </div>
-
-            <!-- Analysis Results -->
-            <div id="results" class="mt-12 hidden"></div>
         </div>
         {% endif %}
     </div>
-
-    <script>
-        // Load template
-        const templates = [
-            { subject: "Special Offer: 20% Off This Week!", body: "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount.\n\nBest regards,\nYour Company" },
-            { subject: "Follow-up on Our Meeting", body: "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up...\n\nBest regards,\nYour Company" },
-            { subject: "Monthly Newsletter", body: "Dear valued customer,\n\nHere’s what’s new this month...\n\nBest regards,\nYour Company" },
-            { subject: "Thank You for Your Purchase!", body: "Hi [Name],\n\nThank you so much for your purchase!\n\nBest regards,\nYour Company" },
-            { subject: "Invoice #INV-2026", body: "Dear [Name],\n\nPlease find your invoice attached.\nTotal due: KSh XXX\n\nBest regards,\nYour Company" },
-            { subject: "Let’s Schedule a Quick Call", body: "Hi [Name],\n\nI’d love to schedule a quick call to discuss how we can help you.\n\nBest regards,\nYour Company" }
-        ];
-
-        function loadTemplate(index) {
-            document.getElementById('subject').value = templates[index].subject;
-            document.getElementById('body').value = templates[index].body;
-            updateLivePreview();
-        }
-
-        // Live Preview
-        function updateLivePreview() {
-            const subject = document.getElementById('subject').value.trim() || "(No subject)";
-            const body = document.getElementById('body').value.trim() || "Your email body...";
-            document.getElementById('live-preview').innerHTML = 
-                `<strong>Subject:</strong> ${subject}<br><br>${body.replace(/\n/g, '<br>')}<br><br>Best regards,<br>Your Company`;
-        }
-
-        // Copy to Gmail
-        function copyToGmail() {
-            const subject = document.getElementById('subject').value.trim();
-            const body = document.getElementById('body').value.trim();
-            const fullEmail = `Subject: ${subject}\n\n${body}\n\nBest regards,\nYour Company`;
-            navigator.clipboard.writeText(fullEmail).then(() => {
-                alert("✅ Copied to clipboard! Paste into Gmail.");
-            });
-        }
-
-        // Simple analysis (you can enhance later)
-        async function runAnalysis() {
-            const bodyText = document.getElementById('body').value.trim();
-            if (!bodyText) return alert("Please write the email body");
-
-            const payload = {
-                subject: document.getElementById('subject').value,
-                body: bodyText,
-                org_name: "Your Company"
-            };
-
-            try {
-                const res = await fetch('/analyze-email', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                let html = `<div class="border rounded-3xl p-6"><h4 class="font-semibold mb-4">Analysis Report</h4>`;
-                html += `<pre class="bg-gray-100 p-4 rounded-2xl">${data.preview}</pre>`;
-                data.report.forEach(item => {
-                    html += `<p class="mt-3 text-sm">${item.msg}</p>`;
-                });
-                html += `</div>`;
-                document.getElementById('results').innerHTML = html;
-                document.getElementById('results').classList.remove('hidden');
-            } catch(e) {
-                alert("Analysis failed.");
-            }
-        }
-    </script>
 </body>
 </html>
