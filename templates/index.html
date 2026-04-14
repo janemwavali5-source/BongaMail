@@ -116,6 +116,7 @@
                     </div>
                 </div>
 
+                <!-- Live Preview -->
                 <div class="bg-gray-50 border border-gray-200 rounded-3xl p-6">
                     <p class="text-xs uppercase text-gray-500 mb-3">Live Preview</p>
                     <div id="live-preview" class="bg-white border border-gray-200 rounded-2xl p-6 min-h-[380px] text-sm leading-relaxed whitespace-pre-wrap">
@@ -124,12 +125,39 @@
                 </div>
             </div>
 
-            <div id="results" class="mt-12 hidden"></div>
+            <!-- ANALYSIS RESULTS SECTION (Email Score + Spam Detection) -->
+            <div id="results" class="mt-12 hidden border rounded-3xl p-8 bg-white">
+                <h4 class="font-semibold text-lg mb-6 flex items-center gap-2">
+                    📊 Analysis Report
+                </h4>
+
+                <!-- Email Score -->
+                <div class="mb-8">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="font-medium text-gray-700">Email Quality Score</span>
+                        <span id="score-value" class="text-4xl font-bold text-blue-600">85</span>
+                    </div>
+                    <div class="h-4 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="score-bar" class="h-full bg-gradient-to-r from-blue-500 to-green-500 transition-all duration-700" 
+                             style="width: 85%"></div>
+                    </div>
+                    <p class="mt-3 text-sm">
+                        Spam Risk: 
+                        <span id="spam-risk" class="font-semibold">Low</span>
+                    </p>
+                </div>
+
+                <!-- Report Items -->
+                <div id="report-list" class="space-y-4 text-sm">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
         </div>
         {% endif %}
     </div>
 
     <script>
+        // Templates
         const templates = [
             { subject: "Special Offer: 20% Off This Week!", body: "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount.\n\nBest regards,\nYour Company" },
             { subject: "Follow-up on Our Meeting", body: "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up...\n\nBest regards,\nYour Company" },
@@ -161,7 +189,7 @@
             });
         }
 
-        // Simple analysis call
+        // Run Analysis with Score & Spam Detection
         async function runAnalysis() {
             const bodyText = document.getElementById('body').value.trim();
             if (!bodyText) return alert("Please write the email body");
@@ -172,25 +200,58 @@
                 org_name: "Your Company"
             };
 
+            const btn = document.querySelector('button[onclick="runAnalysis()"]');
+            const original = btn.textContent;
+            btn.textContent = "Analyzing...";
+            btn.disabled = true;
+
             try {
                 const res = await fetch('/analyze-email', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
+
                 const data = await res.json();
 
-                let html = `<div class="border rounded-3xl p-6"><h4 class="font-semibold mb-4">Analysis Report</h4>`;
-                html += `<pre class="bg-gray-100 p-4 rounded-2xl">${data.preview}</pre>`;
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Show results section
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.classList.remove('hidden');
+
+                // Update Score & Spam Risk
+                document.getElementById('score-value').textContent = data.email_score;
+                document.getElementById('score-bar').style.width = data.email_score + '%';
+
+                const spamEl = document.getElementById('spam-risk');
+                spamEl.textContent = data.spam_risk;
+                spamEl.className = data.spam_risk === 'High' ? 'font-semibold text-red-600' :
+                                   data.spam_risk === 'Medium' ? 'font-semibold text-amber-600' : 
+                                   'font-semibold text-green-600';
+
+                // Build Report
+                let reportHTML = '';
                 data.report.forEach(item => {
-                    html += `<p class="mt-3 text-sm">${item.msg}</p>`;
+                    const color = item.type === 'warning' ? 'text-red-600' : 'text-amber-600';
+                    reportHTML += `
+                        <div class="flex gap-3">
+                            <span class="${color}">●</span>
+                            <p>${item.msg}</p>
+                        </div>`;
                 });
-                html += `</div>`;
-                document.getElementById('results').innerHTML = html;
-                document.getElementById('results').classList.remove('hidden');
+
+                document.getElementById('report-list').innerHTML = reportHTML;
+
             } catch(e) {
-                alert("Analysis failed.");
+                alert("Analysis failed. Please try again.");
             }
+
+            btn.textContent = original;
+            btn.disabled = false;
         }
     </script>
 </body>
