@@ -1,127 +1,51 @@
-from flask import Flask, render_template, request, session, jsonify, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for
 import sqlite3
 from datetime import datetime
 import requests
 import base64
 import os
-import random
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "demo-secret-key-2026-change-later")
 
-# ============== DARAJA CONFIG (Production - Real Money) ==============
+# ============== DARAJA CONFIG ==============
 DARAJA_CONSUMER_KEY = os.environ.get("DARAJA_CONSUMER_KEY")
 DARAJA_CONSUMER_SECRET = os.environ.get("DARAJA_CONSUMER_SECRET")
-DARAJA_SHORTCODE = os.environ.get("DARAJA_SHORTCODE")          # Your Equity Till Number
+DARAJA_SHORTCODE = os.environ.get("DARAJA_SHORTCODE")
 DARAJA_PASSKEY = os.environ.get("DARAJA_PASSKEY")
 CALLBACK_URL = os.environ.get("CALLBACK_URL")
 
-# ============== ADMIN PASSWORD (CHANGE THIS TO YOUR STRONG PASSWORD) ==============
-ADMIN_PASSWORD = "Bonga Mail 2030?"   # ← CHANGE THIS IMMEDIATELY!
-#===============ADMIN LOGIN & PANEL ==============
-@app.route("/admin", methods=["GET", "POST"])
-def admin():
-    # If not logged in as admin
-    if not session.get("is_admin"):
-        if request.method == "POST":
-            if request.form.get("password") == ADMIN_PASSWORD:
-                session["is_admin"] = True
-                return redirect(url_for("admin"))
-            else:
-                return render_template("admin_login.html", error="Incorrect password")
-        return render_template("admin_login.html")
+# ============== ADMIN ==============
+ADMIN_PASSWORD = "admin2026"   # ← CHANGE THIS TO A STRONG PASSWORD
 
-    # Admin is logged in
-    message = None
-    if request.method == "POST":
-        phone = request.form.get("phone", "").strip()
-        trans_ref = request.form.get("trans_ref", "").strip()
-
-        if phone and trans_ref:
-            try:
-                conn = sqlite3.connect('payments.db')
-                c = conn.cursor()
-                c.execute('''
-                    UPDATE transactions 
-                    SET status = 'paid', approved_at = ? 
-                    WHERE phone = ? AND transaction_ref = ? AND status = 'pending'
-                ''', (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), phone, trans_ref))
-                rows = c.rowcount
-                conn.commit()
-                conn.close()
-
-                message = f"✅ Payment for {phone} approved!" if rows > 0 else "❌ No pending payment found."
-            except Exception as e:
-                message = f"Error: {str(e)}"
-        else:
-            message = "Please fill both fields."
-
-    # Get pending payments   
-    try:
-        pending = get_pending_payments()
-    except:
-        pending = []
-
-    return render_template("admin.html", message=message, pending=pending)
-
-
-def get_pending_payments():
-    conn = sqlite3.connect('payments.db')
-    c = conn.cursor()
-    c.execute('''
-        SELECT phone, transaction_ref, timestamp 
-        FROM transactions 
-        WHERE status = 'pending' 
-        ORDER BY timestamp DESC
-    ''')
-    pending = c.fetchall()
-    conn.close()
-    return pending
-
-
-# ============== WORD LISTS FOR EMAIL ANALYZER ==============
+# ============== WORD LISTS ==============
 UNSUBSCRIBE_REQUIRED = ["unsubscribe", "un-subscribe", "opt out"]
 ADDRESS_REQUIRED = ["address", "p.o.box", "po box", "physical address"]
 HYPE_WORDS = ["100%", "guarantee", "best in", "number one", "instant", "free forever"]
-URGENCY_WORDS = ["limited time", "only today", "hurry", "last chance", "act now"]
 CTA_WORDS = ["click", "reply", "book", "schedule", "download", "sign up", "get started", "shop now", "learn more", "contact us"]
-FRIENDLY_WORDS = ["please", "thank", "appreciate", "kindly", "hope", "great"]
-URGENT_WORDS = ["must", "immediately", "asap", "urgent", "now"]
-FORMAL_WORDS = ["regards", "sincerely", "best regards", "dear"]
 
-# ============== DATABASE SETUP ==============
 def init_db():
     conn = sqlite3.connect('payments.db')
     c = conn.cursor()
-    
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            phone TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            checkout_request_id TEXT,
-            merchant_request_id TEXT,
-            mpesa_receipt TEXT,
-            result_code INTEGER,
-            result_desc TEXT,
-            callback_received_at TEXT,
-            timestamp TEXT NOT NULL,
-            status TEXT DEFAULT 'pending'
-        )
-    ''')
-    
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS created_emails (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            phone TEXT NOT NULL,
-            subject TEXT,
-            body TEXT NOT NULL,
-            report TEXT,
-            created_at TEXT NOT NULL,
-            expires_at TEXT NOT NULL
-        )
-    ''')
-    
+    c.execute('''CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        checkout_request_id TEXT,
+        merchant_request_id TEXT,
+        mpesa_receipt TEXT,
+        status TEXT DEFAULT 'pending',
+        timestamp TEXT NOT NULL
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS user_emails (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone TEXT NOT NULL,
+        subject TEXT,
+        body TEXT NOT NULL,
+        report TEXT,
+        score INTEGER,
+        created_at TEXT NOT NULL
+    )''')
     conn.commit()
     conn.close()
 
@@ -144,14 +68,14 @@ def initiate_stk_push(phone, amount=5000):
         "BusinessShortCode": DARAJA_SHORTCODE,
         "Password": password,
         "Timestamp": timestamp,
-        "TransactionType": "CustomerBuyGoodsOnline",     # For Equity Till Number
+        "TransactionType": "CustomerBuyGoodsOnline",
         "Amount": amount,
         "PartyA": phone,
         "PartyB": DARAJA_SHORTCODE,
         "PhoneNumber": phone,
         "CallBackURL": CALLBACK_URL,
-        "AccountReference": "EMAILANALYZER",            # Platform name visible to payer
-        "TransactionDesc": "Email Analyzer Platform Unlock"
+        "AccountReference": "EMAILPRO",
+        "TransactionDesc": "Email Analysis Tool Access"
     }
 
     headers = {"Authorization": f"Bearer {token}"}
@@ -159,38 +83,15 @@ def initiate_stk_push(phone, amount=5000):
     response = requests.post(url, json=payload, headers=headers)
     return response.json()
 
-@app.route("/load_template", methods=["POST"])
-def load_template():
-    template_id = int(request.form.get("template_id", 0))
-    
-    templates = [
-        {"subject": "Special Offer: 20% Off This Week Only!", "body": "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount: [Link]\n\nBest regards,\nYour Company"},
-        {"subject": "Follow-up on Our Meeting", "body": "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up on the action points we discussed.\n\nLet me know if you need any further information.\n\nBest regards,\nYour Company"},
-        {"subject": "Monthly Newsletter – March 2026", "body": "Dear valued customer,\n\nHere’s what’s new this month at our company...\n\n[Content]\n\nWe appreciate your continued support!\n\nBest regards,\nYour Company"},
-        {"subject": "Thank You for Your Purchase!", "body": "Hi [Name],\n\nThank you so much for choosing us! Your order has been processed and is on the way.\n\nWe hope you love it!\n\nBest regards,\nYour Company"},
-        {"subject": "Invoice #INV-2026-045 – Payment Due", "body": "Dear [Name],\n\nPlease find attached your invoice for March services.\n\nTotal due: KSh 12,500\nPayment due by: 15th April 2026\n\nThank you for your prompt payment!\n\nBest regards,\nYour Company"},
-        {"subject": "Invitation: Let’s Schedule a Quick Call", "body": "Hi [Name],\n\nI’d love to schedule a quick 15-minute call to discuss how we can help your business grow.\n\nAre you free next week?\n\nBest regards,\nYour Company"}
-    ]
-    
-    selected = templates[template_id]
-    
-    # For now, just redirect back with the data (we can improve this later)
-    return render_template("index.html", 
-                         unlocked=session.get("unlocked", False),
-                         message=f"Template loaded: {selected['subject']}",
-                         # We can pass the template data if needed
-    )
-
 # ============== MAIN ROUTES ==============
 @app.route("/", methods=["GET", "POST"])
 def index():
     unlocked = session.get("unlocked", False)
     message = None
-    payment_in_progress = bool(session.get("pending_phone"))
+    history = []
 
     if request.method == "POST":
         action = request.form.get("action")
-
         if action == "pay":
             raw_phone = request.form.get("phone", "").strip()
             phone = "".join(c for c in raw_phone if c.isdigit())
@@ -200,269 +101,231 @@ def index():
                 phone = "254" + phone
 
             if phone.startswith("254") and len(phone) == 12:
-                try:
-                    result = initiate_stk_push(phone)
-                    if result.get("ResponseCode") == "0":
-                        conn = sqlite3.connect('payments.db')
-                        c = conn.cursor()
-                        c.execute('''
-                            INSERT INTO transactions 
-                            (phone, amount, checkout_request_id, timestamp, status)
-                            VALUES (?, ?, ?, ?, ?)
-                        ''', (phone, 5000, result.get("CheckoutRequestID"),
-                              datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "pending"))
-                        conn.commit()
-                        conn.close()
-
-                        session["pending_phone"] = phone
-                        message = f"✅ STK Push sent to {phone}. Check your phone!"
-                        payment_in_progress = True
-                    else:
-                        message = f"Daraja Error: {result.get('errorMessage', result)}"
-                except Exception as e:
-                    message = f"Failed to contact Daraja: {str(e)}"
+                result = initiate_stk_push(phone)
+                if result.get("ResponseCode") == "0":
+                    conn = sqlite3.connect('payments.db')
+                    c = conn.cursor()
+                    c.execute('''INSERT INTO transactions (phone, amount, checkout_request_id, timestamp, status)
+                                 VALUES (?, ?, ?, ?, ?)''', 
+                              (phone, 5000, result.get("CheckoutRequestID"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "pending"))
+                    conn.commit()
+                    conn.close()
+                    session["pending_phone"] = phone
+                    message = f"✅ STK Push sent to {phone}. Check your phone!"
+                else:
+                    message = "Failed to initiate payment"
             else:
-                message = "Please enter a valid Kenyan phone number (e.g. 0712345678)"
+                message = "Invalid phone number"
 
         elif action == "logout":
             session.clear()
             return redirect(url_for("index"))
 
-    return render_template("index.html", 
-                         unlocked=unlocked, 
-                         message=message,
-                         payment_in_progress=payment_in_progress)
-
-# ============== OWNER / CREATOR BYPASS (FOR TESTING) ==============
-@app.route("/owner/unlock", methods=["GET"])
-def owner_unlock():
-    # Change this secret key to something only YOU know
-    SECRET_KEY = "BongaMail2030?"   # ← CHANGE THIS TO YOUR OWN SECRET!
-
-    provided_key = request.args.get("key")
-    
-    if provided_key == SECRET_KEY:
-        session["unlocked"] = True
-        session["pending_phone"] = "254700000000"  # Fake phone for testing
-        return """
-            <h2>✅ Owner Mode Activated!</h2>
-            <p>You now have full access to the Email Analyzer.</p>
-            <p><a href="/">Go to Homepage</a></p>
-        """
-    else:
-        return """
-            <h2>Access Denied</h2>
-            <p>Invalid key. You are not authorized.</p>
-        """, 403
-
-@app.route("/api/check_status", methods=["GET"])
-def check_status():
-    phone = session.get("pending_phone")
-    if not phone:
-        return jsonify({"status": "none"})
-
-    conn = sqlite3.connect('payments.db')
-    c = conn.cursor()
-    c.execute('''
-        SELECT status, mpesa_receipt FROM transactions 
-        WHERE phone = ? 
-        ORDER BY timestamp DESC LIMIT 1
-    ''', (phone,))
-    row = c.fetchone()
-    conn.close()
-
-    if row:
-        status, receipt = row
-        if status == "paid":
-            session["unlocked"] = True
-            return jsonify({"status": "paid", "receipt": receipt or "N/A"})
-        return jsonify({"status": status})
-    return jsonify({"status": "pending"})
-
-@app.route("/mpesa/callback", methods=["POST"])
-def mpesa_callback():
-    try:
-        data = request.get_json()
-        callback = data["Body"]["stkCallback"]
-        
-        checkout_id = callback.get("CheckoutRequestID")
-        result_code = callback.get("ResultCode")
-        result_desc = callback.get("ResultDesc", "")
-        status = "paid" if result_code == 0 else "failed"
-
-        mpesa_receipt = None
-        phone_from_callback = None
-
-        if result_code == 0 and "CallbackMetadata" in callback:
-            items = callback["CallbackMetadata"].get("Item", [])
-            for item in items:
-                name = item.get("Name")
-                value = item.get("Value")
-                if name == "MpesaReceiptNumber":
-                    mpesa_receipt = value
-                elif name == "PhoneNumber":
-                    phone_from_callback = value
-
+    # Load history
+    if unlocked and session.get("pending_phone"):
         conn = sqlite3.connect('payments.db')
         c = conn.cursor()
+        c.execute("SELECT subject, body, created_at, score FROM user_emails WHERE phone = ? ORDER BY created_at DESC LIMIT 8", 
+                  (session.get("pending_phone"),))
+        history = c.fetchall()
+        conn.close()
 
-        # Idempotency check
-        c.execute("SELECT mpesa_receipt FROM transactions WHERE checkout_request_id = ?", (checkout_id,))
-        existing = c.fetchone()
-        if existing and existing[0]:
-            conn.close()
-            return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"}), 200
+    return render_template("index.html", unlocked=unlocked, message=message, history=history)
 
-        c.execute('''
-            UPDATE transactions 
-            SET status = ?,
-                merchant_request_id = ?,
-                mpesa_receipt = ?,
-                result_code = ?,
-                result_desc = ?,
-                callback_received_at = ?
-            WHERE checkout_request_id = ?
-        ''', (status, callback.get("MerchantRequestID"), mpesa_receipt,
-              result_code, result_desc, datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-              checkout_id))
+@app.route("/load_template", methods=["POST"])
+def load_template():
+    template_id = int(request.form.get("template_id", 0))
+    templates = [
+        {"subject": "Special Offer: 20% Off This Week Only!", "body": "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount: [Link]\n\nBest regards,\nYour Company"},
+        {"subject": "Follow-up on Our Meeting", "body": "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up on the action points we discussed.\n\nLet me know if you need any further information.\n\nBest regards,\nYour Company"},
+        {"subject": "Monthly Newsletter – March 2026", "body": "Dear valued customer,\n\nHere’s what’s new this month at our company...\n\n[Content]\n\nWe appreciate your continued support!\n\nBest regards,\nYour Company"},
+        {"subject": "Thank You for Your Purchase!", "body": "Hi [Name],\n\nThank you so much for choosing us! Your order has been processed and is on the way.\n\nWe hope you love it!\n\nBest regards,\nYour Company"},
+        {"subject": "Invoice #INV-2026-045 – Payment Due", "body": "Dear [Name],\n\nPlease find attached your invoice for March services.\n\nTotal due: KSh 12,500\nPayment due by: 15th April 2026\n\nThank you for your prompt payment!\n\nBest regards,\nYour Company"},
+        {"subject": "Invitation: Let’s Schedule a Quick Call", "body": "Hi [Name],\n\nI’d love to schedule a quick 15-minute call to discuss how we can help your business grow.\n\nAre you free next week?\n\nBest regards,\nYour Company"},
+        {"subject": "Last Chance - Offer Ending Soon", "body": "Hi there,\n\nThis is your last chance to take advantage of our special offer before it ends.\n\nDon’t miss out!\n\nBest regards,\nYour Company"},
+        {"subject": "Job Application Follow-up", "body": "Dear Hiring Manager,\n\nI am writing to follow up on my application for the [Position] role submitted on [Date].\n\nI remain very interested in the opportunity.\n\nBest regards,\n[Your Name]"},
+        {"subject": "Partnership Proposal", "body": "Dear [Name],\n\nWe believe there is a strong opportunity for collaboration between our two organizations.\n\nWould you be open to a short call next week?\n\nBest regards,\nYour Company"},
+        {"subject": "Customer Feedback Request", "body": "Hi [Name],\n\nThank you for choosing us! We would love to hear your feedback about your recent experience.\n\nIt will only take 2 minutes.\n\nBest regards,\nYour Company"},
+        {"subject": "Event Invitation", "body": "Dear [Name],\n\nYou are cordially invited to our upcoming event on [Date].\n\nWe would be delighted to have you join us.\n\nBest regards,\nYour Company"},
+        {"subject": "Price Adjustment Notice", "body": "Dear valued customer,\n\nPlease note that due to increased costs, our prices will be adjusted effective [Date].\n\nWe appreciate your continued support.\n\nBest regards,\nYour Company"}
+    ]
+    selected = templates[template_id % len(templates)]
+    return render_template("index.html", unlocked=True, message=f"✅ Template loaded: {selected['subject']}")
 
+@app.route("/analyze-email", methods=["POST"])
+def analyze_email():
+    subject = request.form.get('subject', '').strip()
+    body = request.form.get('body', '').strip()
+
+    if not body:
+        return render_template("index.html", unlocked=True, message="Error: Email body is required")
+
+    body_lower = body.lower()
+    report = []
+    score = 85
+    suggestions = []
+
+    if not any(word in body_lower for word in UNSUBSCRIBE_REQUIRED):
+        report.append("Missing unsubscribe link")
+        suggestions.append("Add a clear 'Unsubscribe' link at the bottom of the email")
+        score -= 20
+    if not any(word in body_lower for word in ADDRESS_REQUIRED):
+        report.append("Missing physical address")
+        suggestions.append("Include your full physical address for legal compliance")
+        score -= 15
+    if any(word in body_lower for word in HYPE_WORDS):
+        report.append("Contains hype words")
+        suggestions.append("Replace hype words with specific, honest benefits")
+        score -= 10
+    if not any(word in body_lower for word in CTA_WORDS):
+        report.append("Weak or missing Call-To-Action")
+        suggestions.append("Add a strong CTA like 'Click here to shop now' or 'Reply to book'")
+        score -= 10
+
+    # Save to history
+    phone = session.get("pending_phone")
+    if phone:
+        conn = sqlite3.connect('payments.db')
+        c = conn.cursor()
+        c.execute('''INSERT INTO user_emails (phone, subject, body, report, score, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?)''',
+                  (phone, subject, body, str(report), score, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         conn.commit()
         conn.close()
 
-        if status == "paid" and session.get("pending_phone") == (phone_from_callback or session.get("pending_phone")):
-            session["unlocked"] = True
+    return render_template("index.html", 
+                         unlocked=True,
+                         message="✅ Analysis Complete",
+                         score=score,
+                         report=report,
+                         suggestions=suggestions)
 
-    except Exception as e:
-        print("Callback error:", str(e))
-
-    return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"}), 200
+# ============== OWNER UNLOCK ==============
+@app.route("/owner/unlock")
+def owner_unlock():
+    key = request.args.get("key")
+    if key == "owner2026":   # Change this key for security
+        session["unlocked"] = True
+        session["pending_phone"] = "254700000000"
+        return redirect(url_for("index"))
+    return "Invalid owner key", 403
 
 # ============== ADMIN LOGIN ==============
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
-        entered_password = request.form.get("password")
-        
-        if entered_password == ADMIN_PASSWORD:
+        if request.form.get("password") == ADMIN_PASSWORD:
             session["admin_logged_in"] = True
-            return redirect(url_for("admin_dashboard"))
-        else:
-            return render_template("admin_login.html", error="Incorrect password. Please try again.")
-    
-    return render_template("admin_login.html")
-
+            return redirect("/admin/dashboard")
+        return "Incorrect password. Try again."
+    return """
+    <div style="max-width:400px;margin:100px auto;padding:40px;border:1px solid #ddd;border-radius:12px;text-align:center;">
+        <h2>Admin Login</h2>
+        <form method="POST">
+            <input type="password" name="password" placeholder="Enter admin password" style="width:100%;padding:12px;margin:15px 0;">
+            <button type="submit" style="width:100%;padding:12px;background:#00A651;color:white;border:none;border-radius:8px;">Login</button>
+        </form>
+    </div>
+    """
 
 @app.route("/admin/dashboard")
 def admin_dashboard():
     if not session.get("admin_logged_in"):
-        return redirect(url_for("admin_login"))
-    return render_template("admin.html")
+        return redirect("/admin/login")
 
+    conn = sqlite3.connect('payments.db')
+    c = conn.cursor()
+    c.execute("SELECT id, phone, checkout_request_id, status FROM transactions WHERE status = 'pending' ORDER BY timestamp DESC")
+    pending = c.fetchall()
+    conn.close()
+
+    html = """
+    <h2>Admin Dashboard - Manual Payment Approval</h2>
+    <p><a href="/admin/add_user">➕ Manually Unlock a User</a></p><br>
+    <h3>Pending Payments</h3>
+    """
+    if pending:
+        html += "<table border='1' cellpadding='10' style='width:100%;border-collapse:collapse;'>"
+        html += "<tr><th>ID</th><th>Phone</th><th>Checkout ID</th><th>Action</th></tr>"
+        for p in pending:
+            html += f"""
+            <tr>
+                <td>{p[0]}</td>
+                <td>{p[1]}</td>
+                <td>{p[2]}</td>
+                <td>
+                    <form method="POST" action="/admin/manual_confirm" style="display:inline;">
+                        <input type="hidden" name="checkout_id" value="{p[2]}">
+                        <input type="text" name="receipt" placeholder="M-Pesa Receipt" required>
+                        <button type="submit" style="background:#00A651;color:white;padding:8px 16px;border:none;border-radius:6px;">Mark as Paid</button>
+                    </form>
+                </td>
+            </tr>
+            """
+        html += "</table>"
+    else:
+        html += "<p>No pending payments at the moment.</p>"
+
+    html += '<br><a href="/admin/logout">Logout</a>'
+    return html
+
+@app.route("/admin/manual_confirm", methods=["POST"])
+def manual_confirm():
+    if not session.get("admin_logged_in"):
+        return "Unauthorized", 401
+
+    checkout_id = request.form.get("checkout_id")
+    receipt = request.form.get("receipt")
+
+    conn = sqlite3.connect('payments.db')
+    c = conn.cursor()
+    c.execute("UPDATE transactions SET status='paid', mpesa_receipt=? WHERE checkout_request_id=?", (receipt, checkout_id))
+    conn.commit()
+    conn.close()
+
+    return "Payment successfully confirmed manually! The user is now unlocked."
+
+@app.route("/admin/add_user", methods=["GET", "POST"])
+def admin_add_user():
+    if not session.get("admin_logged_in"):
+        return redirect("/admin/login")
+
+    if request.method == "POST":
+        phone = request.form.get("phone", "").strip()
+        if phone.startswith("0"):
+            phone = "254" + phone[1:]
+        elif len(phone) == 9:
+            phone = "254" + phone
+
+        if phone.startswith("254") and len(phone) == 12:
+            conn = sqlite3.connect('payments.db')
+            c = conn.cursor()
+            c.execute('''INSERT INTO transactions (phone, amount, checkout_request_id, timestamp, status, mpesa_receipt)
+                         VALUES (?, ?, ?, ?, ?, ?)''',
+                      (phone, 5000, "MANUAL_" + datetime.now().strftime("%Y%m%d%H%M%S"), 
+                       datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "paid", "MANUAL_ADD"))
+            conn.commit()
+            conn.close()
+            return f"✅ User with phone {phone} has been manually unlocked!"
+        else:
+            return "Invalid phone number format"
+
+    return """
+    <div style="max-width:500px;margin:80px auto;padding:40px;border:1px solid #ddd;border-radius:12px;">
+        <h2>Manually Unlock User</h2>
+        <form method="POST">
+            <label>Phone Number (e.g. 0712345678)</label><br>
+            <input type="tel" name="phone" required style="width:100%;padding:12px;margin:15px 0;"><br><br>
+            <button type="submit" style="width:100%;padding:12px;background:#00A651;color:white;border:none;border-radius:8px;">Unlock This User</button>
+        </form>
+        <br><a href="/admin/dashboard">Back to Dashboard</a>
+    </div>
+    """
 
 @app.route("/admin/logout")
 def admin_logout():
     session.pop("admin_logged_in", None)
-    return redirect(url_for("admin_login"))
-
-
-# ============== MANUAL DATABASE UPDATE (Protected) ==============
-@app.route("/admin/manual_confirm", methods=["POST"])
-def manual_confirm():
-    if not session.get("admin_logged_in"):
-        return "Unauthorized. Please log in as admin first.", 401
-
-    checkout_id = request.form.get("checkout_id")
-    mpesa_receipt = request.form.get("mpesa_receipt")
-    phone = request.form.get("phone")
-
-    if not checkout_id or not mpesa_receipt:
-        return "Missing required fields (checkout_id or mpesa_receipt)", 400
-
-    conn = sqlite3.connect('payments.db')
-    c = conn.cursor()
-    c.execute('''
-        UPDATE transactions 
-        SET status = 'paid',
-            mpesa_receipt = ?,
-            callback_received_at = ?
-        WHERE checkout_request_id = ?
-    ''', (mpesa_receipt, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), checkout_id))
-    conn.commit()
-    conn.close()
-
-    # Auto-unlock current user session if phone matches
-    if session.get("pending_phone") == phone:
-        session["unlocked"] = True
-
-    return "✅ Payment manually confirmed and database updated successfully!"
-
-
-# ============== EMAIL ANALYZER ==============
-@app.route('/analyze-email', methods=['POST'])
-def analyze_email():
-    if request.is_json:
-        data = request.get_json()
-    else:
-        data = request.form.to_dict()
-
-    subject = data.get('subject', '').strip()
-    body = data.get('body', '').strip()
-    org_name = data.get('org_name', 'Your Company')
-    absent_mode = data.get('absent_mode', False)
-    team_mode = data.get('team_mode', False)
-    comments = data.get('comments', '')
-
-    if not body:
-        return jsonify({"error": "Email body is required"}), 400
-
-    body_lower = body.lower()
-    report = []
-
-    if not any(word in body_lower for word in UNSUBSCRIBE_REQUIRED):
-        report.append({"type": "warning", "msg": "Add physical unsubscribe link or phrase"})
-    if not any(word in body_lower for word in ADDRESS_REQUIRED):
-        report.append({"type": "warning", "msg": "Add physical address (CAN-SPAM requirement)"})
-    if any(word in body_lower for word in HYPE_WORDS):
-        report.append({"type": "warning", "msg": "Avoid absolute hype words"})
-    if any(word in body_lower for word in URGENCY_WORDS):
-        report.append({"type": "info", "msg": "Urgency words detected — use sparingly"})
-    if not any(word in body_lower for word in CTA_WORDS):
-        report.append({"type": "warning", "msg": "Weak or missing Call-To-Action"})
-
-    triggered_words = []
-    if any(word in body_lower for word in FRIENDLY_WORDS):
-        tone = "friendly"
-        triggered_words = [w for w in FRIENDLY_WORDS if w in body_lower]
-    elif any(word in body_lower for word in URGENT_WORDS):
-        tone = "urgent"
-        triggered_words = [w for w in URGENT_WORDS if w in body_lower]
-    elif any(word in body_lower for word in FORMAL_WORDS):
-        tone = "formal"
-        triggered_words = [w for w in FORMAL_WORDS if w in body_lower]
-    else:
-        tone = "neutral"
-
-    tone_options = {
-        "friendly": [f"Tone is friendly and approachable — you used words like {', '.join(triggered_words[:3])} which makes it warm!"],
-        "urgent": ["Tone feels a bit pushy — consider softening it"],
-        "formal": ["Tone is professional and clear — excellent for B2B"],
-        "neutral": ["Tone is neutral — add a few polite words to make it warmer"]
-    }
-    tone_suggestion = random.choice(tone_options.get(tone, ["Good tone!"]))
-
-    signature = f"\n\nBest regards,\n{org_name}"
-    preview = f"Subject: {subject or '(No subject)'}\n\n{body}{signature}"
-
-    return jsonify({
-        "preview": preview,
-        "report": report,
-        "tone": tone,
-        "tone_suggestion": tone_suggestion,
-        "absent_active": bool(absent_mode),
-        "team_active": bool(team_mode),
-        "comments": comments,
-        "status": "success"
-    })
+    return redirect("/admin/login")
 
 if __name__ == "__main__":
     app.run(debug=True)
