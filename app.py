@@ -15,8 +15,8 @@ DARAJA_SHORTCODE = os.environ.get("DARAJA_SHORTCODE")
 DARAJA_PASSKEY = os.environ.get("DARAJA_PASSKEY")
 CALLBACK_URL = os.environ.get("CALLBACK_URL")
 
-# ============== ADMIN ==============
-ADMIN_PASSWORD = "admin2026"   # ← CHANGE THIS TO A STRONG PASSWORD
+# ============== ADMIN PASSWORD ==============
+ADMIN_PASSWORD = "admin2026"   # ← CHANGE THIS TO YOUR STRONG PASSWORD
 
 # ============== WORD LISTS ==============
 UNSUBSCRIBE_REQUIRED = ["unsubscribe", "un-subscribe", "opt out"]
@@ -74,8 +74,8 @@ def initiate_stk_push(phone, amount=5000):
         "PartyB": DARAJA_SHORTCODE,
         "PhoneNumber": phone,
         "CallBackURL": CALLBACK_URL,
-        "AccountReference": "EMAILPRO",
-        "TransactionDesc": "Email Analysis Tool Access"
+        "AccountReference": "EMAILANALYZER",
+        "TransactionDesc": "Payment for Email Analysis Tool"
     }
 
     headers = {"Authorization": f"Bearer {token}"}
@@ -88,7 +88,6 @@ def initiate_stk_push(phone, amount=5000):
 def index():
     unlocked = session.get("unlocked", False)
     message = None
-    history = []
 
     if request.method == "POST":
         action = request.form.get("action")
@@ -121,16 +120,7 @@ def index():
             session.clear()
             return redirect(url_for("index"))
 
-    # Load history
-    if unlocked and session.get("pending_phone"):
-        conn = sqlite3.connect('payments.db')
-        c = conn.cursor()
-        c.execute("SELECT subject, body, created_at, score FROM user_emails WHERE phone = ? ORDER BY created_at DESC LIMIT 8", 
-                  (session.get("pending_phone"),))
-        history = c.fetchall()
-        conn.close()
-
-    return render_template("index.html", unlocked=unlocked, message=message, history=history)
+    return render_template("index.html", unlocked=unlocked, message=message)
 
 @app.route("/load_template", methods=["POST"])
 def load_template():
@@ -141,13 +131,7 @@ def load_template():
         {"subject": "Monthly Newsletter – March 2026", "body": "Dear valued customer,\n\nHere’s what’s new this month at our company...\n\n[Content]\n\nWe appreciate your continued support!\n\nBest regards,\nYour Company"},
         {"subject": "Thank You for Your Purchase!", "body": "Hi [Name],\n\nThank you so much for choosing us! Your order has been processed and is on the way.\n\nWe hope you love it!\n\nBest regards,\nYour Company"},
         {"subject": "Invoice #INV-2026-045 – Payment Due", "body": "Dear [Name],\n\nPlease find attached your invoice for March services.\n\nTotal due: KSh 12,500\nPayment due by: 15th April 2026\n\nThank you for your prompt payment!\n\nBest regards,\nYour Company"},
-        {"subject": "Invitation: Let’s Schedule a Quick Call", "body": "Hi [Name],\n\nI’d love to schedule a quick 15-minute call to discuss how we can help your business grow.\n\nAre you free next week?\n\nBest regards,\nYour Company"},
-        {"subject": "Last Chance - Offer Ending Soon", "body": "Hi there,\n\nThis is your last chance to take advantage of our special offer before it ends.\n\nDon’t miss out!\n\nBest regards,\nYour Company"},
-        {"subject": "Job Application Follow-up", "body": "Dear Hiring Manager,\n\nI am writing to follow up on my application for the [Position] role submitted on [Date].\n\nI remain very interested in the opportunity.\n\nBest regards,\n[Your Name]"},
-        {"subject": "Partnership Proposal", "body": "Dear [Name],\n\nWe believe there is a strong opportunity for collaboration between our two organizations.\n\nWould you be open to a short call next week?\n\nBest regards,\nYour Company"},
-        {"subject": "Customer Feedback Request", "body": "Hi [Name],\n\nThank you for choosing us! We would love to hear your feedback about your recent experience.\n\nIt will only take 2 minutes.\n\nBest regards,\nYour Company"},
-        {"subject": "Event Invitation", "body": "Dear [Name],\n\nYou are cordially invited to our upcoming event on [Date].\n\nWe would be delighted to have you join us.\n\nBest regards,\nYour Company"},
-        {"subject": "Price Adjustment Notice", "body": "Dear valued customer,\n\nPlease note that due to increased costs, our prices will be adjusted effective [Date].\n\nWe appreciate your continued support.\n\nBest regards,\nYour Company"}
+        {"subject": "Invitation: Let’s Schedule a Quick Call", "body": "Hi [Name],\n\nI’d love to schedule a quick 15-minute call to discuss how we can help your business grow.\n\nAre you free next week?\n\nBest regards,\nYour Company"}
     ]
     selected = templates[template_id % len(templates)]
     return render_template("index.html", unlocked=True, message=f"✅ Template loaded: {selected['subject']}")
@@ -162,49 +146,26 @@ def analyze_email():
 
     body_lower = body.lower()
     report = []
-    score = 85
-    suggestions = []
 
     if not any(word in body_lower for word in UNSUBSCRIBE_REQUIRED):
-        report.append("Missing unsubscribe link")
-        suggestions.append("Add a clear 'Unsubscribe' link at the bottom of the email")
-        score -= 20
+        report.append("⚠️ Add unsubscribe link or phrase")
     if not any(word in body_lower for word in ADDRESS_REQUIRED):
-        report.append("Missing physical address")
-        suggestions.append("Include your full physical address for legal compliance")
-        score -= 15
+        report.append("⚠️ Add physical address (CAN-SPAM requirement)")
     if any(word in body_lower for word in HYPE_WORDS):
-        report.append("Contains hype words")
-        suggestions.append("Replace hype words with specific, honest benefits")
-        score -= 10
+        report.append("⚠️ Avoid hype words like 'guarantee', '100%'")
     if not any(word in body_lower for word in CTA_WORDS):
-        report.append("Weak or missing Call-To-Action")
-        suggestions.append("Add a strong CTA like 'Click here to shop now' or 'Reply to book'")
-        score -= 10
-
-    # Save to history
-    phone = session.get("pending_phone")
-    if phone:
-        conn = sqlite3.connect('payments.db')
-        c = conn.cursor()
-        c.execute('''INSERT INTO user_emails (phone, subject, body, report, score, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?)''',
-                  (phone, subject, body, str(report), score, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-        conn.commit()
-        conn.close()
+        report.append("⚠️ Add a clear Call-To-Action")
 
     return render_template("index.html", 
                          unlocked=True,
-                         message="✅ Analysis Complete",
-                         score=score,
-                         report=report,
-                         suggestions=suggestions)
+                         message="Analysis Complete",
+                         report=report)
 
 # ============== OWNER UNLOCK ==============
 @app.route("/owner/unlock")
 def owner_unlock():
     key = request.args.get("key")
-    if key == "owner2026":   # Change this key for security
+    if key == "owner2026":   # Change this for better security
         session["unlocked"] = True
         session["pending_phone"] = "254700000000"
         return redirect(url_for("index"))
@@ -218,11 +179,12 @@ def admin_login():
             session["admin_logged_in"] = True
             return redirect("/admin/dashboard")
         return "Incorrect password. Try again."
+    
     return """
     <div style="max-width:400px;margin:100px auto;padding:40px;border:1px solid #ddd;border-radius:12px;text-align:center;">
         <h2>Admin Login</h2>
         <form method="POST">
-            <input type="password" name="password" placeholder="Enter admin password" style="width:100%;padding:12px;margin:15px 0;">
+            <input type="password" name="password" placeholder="Admin Password" style="width:100%;padding:12px;margin:15px 0;">
             <button type="submit" style="width:100%;padding:12px;background:#00A651;color:white;border:none;border-radius:8px;">Login</button>
         </form>
     </div>
@@ -256,7 +218,7 @@ def admin_dashboard():
                 <td>
                     <form method="POST" action="/admin/manual_confirm" style="display:inline;">
                         <input type="hidden" name="checkout_id" value="{p[2]}">
-                        <input type="text" name="receipt" placeholder="M-Pesa Receipt" required>
+                        <input type="text" name="receipt" placeholder="M-Pesa Receipt Number" required>
                         <button type="submit" style="background:#00A651;color:white;padding:8px 16px;border:none;border-radius:6px;">Mark as Paid</button>
                     </form>
                 </td>
@@ -283,7 +245,7 @@ def manual_confirm():
     conn.commit()
     conn.close()
 
-    return "Payment successfully confirmed manually! The user is now unlocked."
+    return "✅ Payment confirmed manually! The user is now unlocked."
 
 @app.route("/admin/add_user", methods=["GET", "POST"])
 def admin_add_user():
@@ -306,9 +268,9 @@ def admin_add_user():
                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "paid", "MANUAL_ADD"))
             conn.commit()
             conn.close()
-            return f"✅ User with phone {phone} has been manually unlocked!"
+            return f"✅ User {phone} has been manually unlocked!"
         else:
-            return "Invalid phone number format"
+            return "Invalid phone number"
 
     return """
     <div style="max-width:500px;margin:80px auto;padding:40px;border:1px solid #ddd;border-radius:12px;">
@@ -316,9 +278,9 @@ def admin_add_user():
         <form method="POST">
             <label>Phone Number (e.g. 0712345678)</label><br>
             <input type="tel" name="phone" required style="width:100%;padding:12px;margin:15px 0;"><br><br>
-            <button type="submit" style="width:100%;padding:12px;background:#00A651;color:white;border:none;border-radius:8px;">Unlock This User</button>
+            <button type="submit" style="width:100%;padding:12px;background:#00A651;color:white;border:none;border-radius:8px;">Unlock User</button>
         </form>
-        <br><a href="/admin/dashboard">Back to Dashboard</a>
+        <br><a href="/admin/dashboard">← Back to Dashboard</a>
     </div>
     """
 
