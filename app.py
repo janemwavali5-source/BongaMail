@@ -8,15 +8,8 @@ import os
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "demo-secret-key-2026-change-later")
 
-# ============== DARAJA CONFIG ==============
-DARAJA_CONSUMER_KEY = os.environ.get("DARAJA_CONSUMER_KEY")
-DARAJA_CONSUMER_SECRET = os.environ.get("DARAJA_CONSUMER_SECRET")
-DARAJA_SHORTCODE = os.environ.get("DARAJA_SHORTCODE")
-DARAJA_PASSKEY = os.environ.get("DARAJA_PASSKEY")
-CALLBACK_URL = os.environ.get("CALLBACK_URL")
-
 # ============== ADMIN PASSWORD ==============
-ADMIN_PASSWORD = "admin2026"   # ← CHANGE THIS TO YOUR STRONG PASSWORD
+ADMIN_PASSWORD = "BongaMail2030?"   # ← CHANGE THIS TO YOUR STRONG PASSWORD
 
 # ============== WORD LISTS ==============
 UNSUBSCRIBE_REQUIRED = ["unsubscribe", "un-subscribe", "opt out"]
@@ -51,37 +44,6 @@ def init_db():
 
 init_db()
 
-# ============== DARAJA HELPERS ==============
-def get_access_token():
-    url = "https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
-    credentials = base64.b64encode(f"{DARAJA_CONSUMER_KEY}:{DARAJA_CONSUMER_SECRET}".encode()).decode()
-    headers = {"Authorization": f"Basic {credentials}"}
-    response = requests.get(url, headers=headers)
-    return response.json().get("access_token")
-
-def initiate_stk_push(phone, amount=5000):
-    token = get_access_token()
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    password = base64.b64encode(f"{DARAJA_SHORTCODE}{DARAJA_PASSKEY}{timestamp}".encode()).decode()
-
-    payload = {
-        "BusinessShortCode": DARAJA_SHORTCODE,
-        "Password": password,
-        "Timestamp": timestamp,
-        "TransactionType": "CustomerBuyGoodsOnline",
-        "Amount": amount,
-        "PartyA": phone,
-        "PartyB": DARAJA_SHORTCODE,
-        "PhoneNumber": phone,
-        "CallBackURL": CALLBACK_URL,
-        "AccountReference": "EMAILANALYZER",
-        "TransactionDesc": "Payment for Email Analysis Tool"
-    }
-
-    headers = {"Authorization": f"Bearer {token}"}
-    url = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
-    response = requests.post(url, json=payload, headers=headers)
-    return response.json()
 
 # ============== MAIN ROUTES ==============
 @app.route("/", methods=["GET", "POST"])
