@@ -27,7 +27,7 @@
         {% if not unlocked %}
         <div class="px-8 py-12 text-center">
             <h2 class="text-2xl font-semibold mb-3">Unlock Full Access</h2>
-            <p class="text-gray-600 mb-8">12 pro templates, detailed analysis, history &amp; reports</p>
+            <p class="text-gray-600 mb-8">12 templates, detailed analysis, history & reports</p>
             <form method="POST">
                 <input type="hidden" name="action" value="pay">
                 <input type="tel" name="phone" class="w-full max-w-md mx-auto px-5 py-4 text-lg border border-gray-300 rounded-2xl focus:outline-none focus:border-green-500" placeholder="0712345678" required>
@@ -45,21 +45,20 @@
 
             <!-- Templates -->
             <div class="mb-10">
-                <p class="text-sm font-medium text-gray-600 mb-4">Choose a Template</p>
+                <p class="text-sm font-medium text-gray-600 mb-4">Quick Templates</p>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {% for i in range(12) %}
+                    {% for i in range(6) %}
                     <form method="POST" action="/load_template">
                         <input type="hidden" name="template_id" value="{{ i }}">
                         <button type="submit" class="w-full text-left p-5 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                            <strong>{{ ['Marketing Offer','Follow-up Email','Newsletter','Thank You','Invoice Request','Meeting Invitation','Promotion Reminder','Job Application','Partnership Proposal','Customer Feedback','Event Invitation','Price Increase Notice'][i] }}</strong><br>
-                            <small class="text-gray-500">{{ ['Promote a product','Follow up after meeting','Monthly update','Thank customer','Payment request','Schedule call','Reminder for offer','Job application','Partnership proposal','Ask for feedback','Event invitation','Announce price change'][i] }}</small>
+                            <strong>{{ ['Marketing Offer','Follow-up Email','Newsletter','Thank You','Invoice Request','Meeting Invitation'][i] }}</strong><br>
+                            <small class="text-gray-500">{{ ['Promote a product','Follow up after meeting','Monthly update','Thank customer','Payment request','Schedule call'][i] }}</small>
                         </button>
                     </form>
                     {% endfor %}
                 </div>
             </div>
 
-            <!-- Analysis Form -->
             <form method="POST" action="/analyze-email">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div>
@@ -82,29 +81,10 @@
                     </div>
                 </div>
             </form>
-
-            <!-- History -->
-            <div class="mt-16">
-                <h3 class="font-semibold text-lg mb-4">📚 Your Analysis History</h3>
-                {% if history %}
-                <div class="space-y-6">
-                    {% for item in history %}
-                    <div class="border border-gray-200 rounded-2xl p-6">
-                        <div class="flex justify-between">
-                            <p class="font-medium">{{ item[1] }}</p>
-                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm">Score: {{ item[4] }}/100</span>
-                        </div>
-                        <p class="text-sm text-gray-600 mt-2">{{ item[2][:150] }}...</p>
-                        <p class="text-xs text-gray-500 mt-3">{{ item[3] }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-gray-500">No analyses yet. Create your first one above.</p>
-                {% endif %}
-            </div>
         </div>
         {% endif %}
     </div>
 </body>
 </html>
+
+                        
