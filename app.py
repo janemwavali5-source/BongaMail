@@ -136,30 +136,83 @@ def load_template():
     selected = templates[template_id % len(templates)]
     return render_template("index.html", unlocked=True, message=f"✅ Template loaded: {selected['subject']}")
 
-@app.route("/analyze-email", methods=["POST"])
+@app.route('/analyze-email', methods=['POST'])
 def analyze_email():
-    subject = request.form.get('subject', '').strip()
-    body = request.form.get('body', '').strip()
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+
+    subject = data.get('subject', '').strip()
+    body = data.get('body', '').strip()
+    org_name = data.get('org_name', 'Your Company')
 
     if not body:
-        return render_template("index.html", unlocked=True, message="Error: Email body is required")
+        return jsonify({"error": "Email body is required"}), 400
 
     body_lower = body.lower()
     report = []
+    score = 100   # Start with perfect score
+    spam_risk = "Low"
 
-    if not any(word in body_lower for word in UNSUBSCRIBE_REQUIRED):
-        report.append("⚠️ Add unsubscribe link or phrase")
-    if not any(word in body_lower for word in ADDRESS_REQUIRED):
-        report.append("⚠️ Add physical address (CAN-SPAM requirement)")
-    if any(word in body_lower for word in HYPE_WORDS):
-        report.append("⚠️ Avoid hype words like 'guarantee', '100%'")
-    if not any(word in body_lower for word in CTA_WORDS):
-        report.append("⚠️ Add a clear Call-To-Action")
+    # === COMPLIANCE & SPAM CHECKS ===
+    if not any(word in body_lower for word in ["unsubscribe", "opt out", "un-subscribe"]):
+        report.append({"type": "warning", "msg": "Missing unsubscribe link (increases spam risk)"})
+        score -= 15
 
-    return render_template("index.html", 
-                         unlocked=True,
-                         message="Analysis Complete",
-                         report=report)
+    if not any(word in body_lower for word in ["address", "p.o.box", "po box", "physical address"]):
+        report.append({"type": "warning", "msg": "Missing physical address (CAN-SPAM / DPA compliance)"})
+        score -= 10
+
+    if any(word in body_lower for word in ["100%", "guarantee", "best in world", "number one", "instant results"]):
+        report.append({"type": "warning", "msg": "Avoid absolute claims - high spam trigger"})
+        score -= 12
+        spam_risk = "Medium"
+
+    if any(word in body_lower for word in ["limited time", "only today", "hurry", "last chance", "act now"]):
+        report.append({"type": "info", "msg": "Urgency words detected - use sparingly"})
+        score -= 8
+
+    if not any(word in body_lower for word in ["click", "reply", "book", "schedule", "download", "sign up", "get started", "shop now", "learn more", "contact us"]):
+        report.append({"type": "warning", "msg": "Weak or missing Call-To-Action"})
+        score -= 10
+
+    # Tone penalties
+    if any(word in body_lower for word in ["must", "immediately", "asap", "urgent", "now"]):
+        score -= 5
+
+    # Positive points
+    if any(word in body_lower for word in ["please", "thank", "appreciate", "kindly", "hope you're well"]):
+        score += 8
+
+    # Length check
+    if len(body) < 50:
+        report.append({"type": "warning", "msg": "Email body is too short"})
+        score -= 10
+    elif len(body) > 800:
+        report.append({"type": "info", "msg": "Email is quite long - consider shortening"})
+        score -= 5
+
+    # Final score bounds
+    score = max(0, min(100, score))
+
+    if score < 50:
+        spam_risk = "High"
+    elif score < 75:
+        spam_risk = "Medium"
+
+    # Preview
+    signature = f"\n\nBest regards,\n{org_name}"
+    preview = f"Subject: {subject or '(No subject)'}\n\n{body}{signature}"
+
+    return jsonify({
+        "preview": preview,
+        "report": report,
+        "email_score": score,
+        "spam_risk": spam_risk,
+        "tone": "neutral",   # you can enhance this later
+        "status": "success"
+    })
 
 # ============== OWNER UNLOCK ==============
 @app.route("/owner/unlock")
