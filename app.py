@@ -180,7 +180,7 @@ def analyze_email():
 @app.route("/owner/unlock")
 def owner_unlock():
     key = request.args.get("key")
-    if key == "owner2026":   # Change this for better security
+    if key == "BongaMail2030?":   # Change this for better security
         session["unlocked"] = True
         session["pending_phone"] = "254700000000"
         return redirect(url_for("index"))
