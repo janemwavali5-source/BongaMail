@@ -2,29 +2,32 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Login - Bonga Mail</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Email Analysis Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
-        <h2 class="text-2xl font-semibold text-center mb-6">Admin Login</h2>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full mx-auto bg-gray-800 rounded-3xl p-10 shadow-2xl">
+        <h2 class="text-3xl font-bold text-center mb-8">Admin Login</h2>
         
         {% if error %}
-        <div class="bg-red-100 text-red-700 p-3 rounded-2xl mb-4 text-center">
+        <div class="bg-red-900 text-red-200 p-4 rounded-2xl mb-6 text-center">
             {{ error }}
         </div>
         {% endif %}
 
         <form method="POST">
-            <input type="password" name="password" 
-                   class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 mb-4"
-                   placeholder="Enter admin password" required>
+            <div class="mb-6">
+                <label class="block text-sm font-medium mb-2">Password</label>
+                <input type="password" name="password" 
+                       class="w-full px-5 py-4 bg-gray-700 border border-gray-600 rounded-2xl focus:outline-none focus:border-green-500 text-lg"
+                       placeholder="Enter admin password" required>
+            </div>
             <button type="submit" 
-                    class="w-full bg-gray-900 text-white py-4 rounded-2xl font-semibold">
+                    class="w-full bg-green-600 hover:bg-green-700 py-4 rounded-2xl text-lg font-semibold">
                 Login to Admin Panel
             </button>
         </form>
     </div>
 </body>
 </html>
-    
