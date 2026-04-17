@@ -111,51 +111,72 @@ def analyze_email():
 
     body_lower = body.lower()
     report = []
-    score = 100   # Start with perfect score
+    score = 100
     spam_risk = "Low"
 
-    # === COMPLIANCE & SPAM CHECKS ===
-    if not any(word in body_lower for word in ["unsubscribe", "opt out", "un-subscribe"]):
-        report.append({"type": "warning", "msg": "Missing unsubscribe link (increases spam risk)"})
+    # === COMPLIANCE CHECKS ===
+    if not any(word in body_lower for word in UNSUBSCRIBE_REQUIRED):
+        report.append({"type": "warning", "msg": "Missing unsubscribe link (high spam risk)"})
+        score -= 25
+
+    if not any(word in body_lower for word in ADDRESS_REQUIRED):
+        report.append({"type": "warning", "msg": "Missing physical address (CAN-SPAM / legal requirement)"})
         score -= 15
 
-    if not any(word in body_lower for word in ["address", "p.o.box", "po box", "physical address"]):
-        report.append({"type": "warning", "msg": "Missing physical address (CAN-SPAM / DPA compliance)"})
-        score -= 10
+    # === SPAM & HYPE CHECKS ===
+    hype_count = sum(1 for word in HYPE_WORDS if word in body_lower)
+    if hype_count > 0:
+        report.append({"type": "warning", "msg": f"Contains {hype_count} hype word(s)"})
+        score -= hype_count * 10
+        if hype_count >= 2:
+            spam_risk = "High"
 
-    if any(word in body_lower for word in ["100%", "guarantee", "best in world", "number one", "instant results"]):
-        report.append({"type": "warning", "msg": "Avoid absolute claims - high spam trigger"})
+    # Urgency words (use sparingly)
+    urgency_count = sum(1 for word in URGENCY_WORDS if word in body_lower)
+    if urgency_count > 2:
+        report.append({"type": "info", "msg": "Too many urgency words - can trigger spam filters"})
         score -= 12
-        spam_risk = "Medium"
 
-    if any(word in body_lower for word in ["limited time", "only today", "hurry", "last chance", "act now"]):
-        report.append({"type": "info", "msg": "Urgency words detected - use sparingly"})
-        score -= 8
-
-    if not any(word in body_lower for word in ["click", "reply", "book", "schedule", "download", "sign up", "get started", "shop now", "learn more", "contact us"]):
+    # Call-To-Action
+    if not any(word in body_lower for word in CTA_WORDS):
         report.append({"type": "warning", "msg": "Weak or missing Call-To-Action"})
+        score -= 15
+
+    # === ADDITIONAL SPAM SIGNALS ===
+    if body.count('!') > 6:
+        report.append({"type": "warning", "msg": "Too many exclamation marks (!)" })
         score -= 10
 
-    # Tone penalties
-    if any(word in body_lower for word in ["must", "immediately", "asap", "urgent", "now"]):
-        score -= 5
+    if len([c for c in body if c.isupper()]) > len(body) * 0.25:
+        report.append({"type": "warning", "msg": "Too much uppercase text"})
+        score -= 12
 
-    # Positive points
-    if any(word in body_lower for word in ["please", "thank", "appreciate", "kindly", "hope you're well"]):
-        score += 8
+    # Link count
+    link_count = body_lower.count("http")
+    if link_count > 5:
+        report.append({"type": "warning", "msg": f"Too many links ({link_count})"})
+        score -= 10
 
-    # Length check
-    if len(body) < 50:
+    # Length checks
+    if len(body) < 60:
         report.append({"type": "warning", "msg": "Email body is too short"})
-        score -= 10
-    elif len(body) > 800:
-        report.append({"type": "info", "msg": "Email is quite long - consider shortening"})
+        score -= 8
+    elif len(body) > 900:
+        report.append({"type": "info", "msg": "Email is very long - consider shortening"})
         score -= 5
+
+    # Tone detection
+    tone = "neutral"
+    if any(word in body_lower for word in FRIENDLY_WORDS):
+        tone = "friendly"
+    elif any(word in body_lower for word in URGENT_WORDS):
+        tone = "urgent"
 
     # Final score bounds
-    score = max(0, min(100, score))
+    score = max(30, min(100, score))
 
-    if score < 50:
+    # Adjust spam risk based on final score
+    if score < 55:
         spam_risk = "High"
     elif score < 75:
         spam_risk = "Medium"
@@ -169,7 +190,7 @@ def analyze_email():
         "report": report,
         "email_score": score,
         "spam_risk": spam_risk,
-        "tone": "neutral",   # you can enhance this later
+        "tone": tone,
         "status": "success"
     })
 
