@@ -261,13 +261,16 @@ def manual_confirm():
 @app.route("/admin/add_user", methods=["GET", "POST"])
 def admin_add_user():
     if not session.get("admin_logged_in"):
-        return redirect("/admin/login.html")
+        return redirect("/admin/login")
 
     message = None
     error = None
 
     if request.method == "POST":
         phone = request.form.get("phone", "").strip()
+        
+        # Clean phone number
+        phone = "".join(c for c in phone if c.isdigit())
         if phone.startswith("0"):
             phone = "254" + phone[1:]
         elif len(phone) == 9:
@@ -287,13 +290,13 @@ def admin_add_user():
                            "MANUAL_ADD"))
                 conn.commit()
                 conn.close()
-                message = f"✅ User {phone} has been manually unlocked!"
+                message = f"✅ User {phone} has been successfully unlocked!"
             except Exception as e:
                 error = f"Database error: {str(e)}"
         else:
             error = "Invalid phone number. Please use format like 0712345678"
 
-    return render_template('admin/add_user.html')
+    return render_template("admin_add_user.html", message=message, error=error)
 
 # ============== ADMIN LOGOUT ==============
 @app.route("/admin/logout")
