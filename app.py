@@ -185,14 +185,15 @@ def analyze_email():
     signature = f"\n\nBest regards,\n{org_name}"
     preview = f"Subject: {subject or '(No subject)'}\n\n{body}{signature}"
 
-    return jsonify({
-        "preview": preview,
-        "report": report,
-        "email_score": score,
-        "spam_risk": spam_risk,
-        "tone": tone,
-        "status": "success"
-    })
+  
+
+    return render_template("index.html", 
+                         unlocked=True,
+                         message="Analysis Complete",
+                         report=report,
+                         email_score=score,
+                         spam_risk=spam_risk,
+                         preview=preview)
 
 # ============== OWNER UNLOCK ==============
 @app.route("/owner/unlock")
