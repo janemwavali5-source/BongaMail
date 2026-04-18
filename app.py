@@ -6,7 +6,7 @@ import base64
 import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "demo-secret-key-2026-change-later")
+app.secret_key = os.environ.get("Studymaster", "Skyward")
 
 # ============== WORD LISTS ==============
 UNSUBSCRIBE_REQUIRED = ["unsubscribe", "un-subscribe", "opt out"]
