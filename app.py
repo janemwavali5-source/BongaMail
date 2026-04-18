@@ -296,7 +296,7 @@ def admin_add_user():
         else:
             error = "Invalid phone number. Please use format like 0712345678"
 
-    return render_template("admin_add_user.html", message=message, error=error)
+    return render_template("admin/add_user.html", message=message, error=error)
 
 # ============== ADMIN LOGOUT ==============
 @app.route("/admin/logout")
