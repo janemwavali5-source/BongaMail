@@ -1,4 +1,4 @@
-<DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -64,66 +64,54 @@
             <div class="mb-10">
                 <p class="text-sm font-medium text-gray-600 mb-4">Quick Templates</p>
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <button onclick="loadTemplate(0)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Marketing Offer</strong><br>
-                        <small class="text-gray-500">Promote a product</small>
+                    {% for i in range(templates|length) %}
+                    <button onclick="loadTemplate({{ i }})" 
+                            class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
+                        <strong>{{ templates[i].name }}</strong><br>
+                        <small class="text-gray-500">{{ templates[i].desc }}</small>
                     </button>
-                    <button onclick="loadTemplate(1)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Follow-up Email</strong><br>
-                        <small class="text-gray-500">After meeting</small>
-                    </button>
-                    <button onclick="loadTemplate(2)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Newsletter</strong><br>
-                        <small class="text-gray-500">Monthly update</small>
-                    </button>
-                    <button onclick="loadTemplate(3)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Thank You</strong><br>
-                        <small class="text-gray-500">Thank customer</small>
-                    </button>
-                    <button onclick="loadTemplate(4)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Invoice Request</strong><br>
-                        <small class="text-gray-500">Payment request</small>
-                    </button>
-                    <button onclick="loadTemplate(5)" class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>Meeting Invitation</strong><br>
-                        <small class="text-gray-500">Schedule a call</small>
-                    </button>
+                    {% endfor %}
                 </div>
             </div>
 
             <!-- Compose Form -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Subject</label>
-                    <input type="text" id="subject" 
-                           class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
-                           placeholder="Enter subject line...">
+            <form id="compose-form" method="POST" action="/analyze-email">
+                <input type="hidden" name="action" value="analyze">
 
-                    <label class="block text-sm font-medium mb-2 mt-6">Email Body</label>
-                    <textarea id="body" rows="12"
-                              class="w-full px-4 py-3 border border-gray-300 rounded-3xl focus:outline-none focus:border-blue-500 resize-y text-base leading-relaxed"
-                              placeholder="Write or edit your email here..."></textarea>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Subject</label>
+                        <input type="text" id="subject" name="subject"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:border-blue-500 text-lg"
+                               placeholder="Enter subject line..." value="{{ subject|default('') }}">
 
-                    <div class="flex gap-4 mt-6">
-                        <button onclick="runAnalysis()" 
-                                class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl text-lg">
-                            🔍 Analyze Email
-                        </button>
-                        <button onclick="copyToGmail()" 
-                                class="flex-1 bg-[#00A651] hover:bg-green-700 text-white font-semibold py-4 rounded-2xl text-lg">
-                            📧 Copy to Gmail
-                        </button>
+                        <label class="block text-sm font-medium mb-2 mt-6">Email Body</label>
+                        <textarea id="body" name="body" rows="12"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-3xl focus:outline-none focus:border-blue-500 resize-y text-base leading-relaxed"
+                                  placeholder="Write or edit your email here...">{{ body|default('') }}</textarea>
+
+                        <div class="flex gap-4 mt-6">
+                            <button type="submit"
+                                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 rounded-2xl text-lg">
+                                🔍 Analyze Email
+                            </button>
+                            <button type="button" onclick="copyToGmail()" 
+                                    class="flex-1 bg-[#00A651] hover:bg-green-700 text-white font-semibold py-4 rounded-2xl text-lg">
+                                📧 Copy to Gmail
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Preview -->
+                    <div class="bg-gray-50 border border-gray-200 rounded-3xl p-6">
+                        <p class="text-xs uppercase text-gray-500 mb-3">Live Preview</p>
+                        <div id="live-preview" 
+                             class="bg-white border border-gray-200 rounded-2xl p-6 min-h-[380px] text-sm leading-relaxed whitespace-pre-wrap">
+                            Your email preview will appear here...
+                        </div>
                     </div>
                 </div>
-
-                <!-- Live Preview -->
-                <div class="bg-gray-50 border border-gray-200 rounded-3xl p-6">
-                    <p class="text-xs uppercase text-gray-500 mb-3">Live Preview</p>
-                    <div id="live-preview" class="bg-white border border-gray-200 rounded-2xl p-6 min-h-[380px] text-sm leading-relaxed whitespace-pre-wrap">
-                        Your email preview will appear here...
-                    </div>
-                </div>
-            </div>
+            </form>
 
             <!-- ANALYSIS RESULTS SECTION -->
             {% if report is defined %}
@@ -163,28 +151,32 @@
                     {% endfor %}
                 </div>
 
-                <!-- Preview -->
                 {% if preview %}
                 <div class="mt-10">
-                    <p class="text-xs uppercase text-gray-500 mb-2">Preview</p>
+                    <p class="text-xs uppercase text-gray-500 mb-2">Improved Preview</p>
                     <pre class="bg-gray-100 p-4 rounded-2xl text-sm overflow-auto whitespace-pre-wrap">{{ preview }}</pre>
                 </div>
                 {% endif %}
             </div>
             {% endif %}
         </div>
-    </div>        
-    
+        {% endif %}
+    </div>
 
     <script>
-        // Templates
+        // Templates (now with name/desc for better display)
         const templates = [
-            { subject: "Special Offer: 20% Off This Week!", body: "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount.\n\nBest regards,\nYour Company" },
-            { subject: "Follow-up on Our Meeting", body: "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up...\n\nBest regards,\nYour Company" },
-            { subject: "Monthly Newsletter", body: "Dear valued customer,\n\nHere’s what’s new this month...\n\nBest regards,\nYour Company" },
-            { subject: "Thank You for Your Purchase!", body: "Hi [Name],\n\nThank you so much for your purchase!\n\nBest regards,\nYour Company" },
-            { subject: "Invoice #INV-2026", body: "Dear [Name],\n\nPlease find your invoice attached.\nTotal due: KSh XXX\n\nBest regards,\nYour Company" },
-            { subject: "Let’s Schedule a Quick Call", body: "Hi [Name],\n\nI’d love to schedule a quick call to discuss how we can help you.\n\nBest regards,\nYour Company" }
+            { name: "Marketing Offer", desc: "Promote a product", 
+              subject: "Special Offer: 20% Off This Week!", 
+              body: "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount.\n\nBest regards,\nYour Company" },
+            { name: "Follow-up Email", desc: "After meeting", 
+              subject: "Follow-up on Our Meeting", 
+              body: "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up...\n\nBest regards,\nYour Company" },
+            // ... add the rest similarly
+            { name: "Newsletter", desc: "Monthly update", subject: "Monthly Newsletter", body: "Dear valued customer,\n\nHere’s what’s new this month...\n\nBest regards,\nYour Company" },
+            { name: "Thank You", desc: "Thank customer", subject: "Thank You for Your Purchase!", body: "Hi [Name],\n\nThank you so much for your purchase!\n\nBest regards,\nYour Company" },
+            { name: "Invoice Request", desc: "Payment request", subject: "Invoice #INV-2026", body: "Dear [Name],\n\nPlease find your invoice attached.\nTotal due: KSh XXX\n\nBest regards,\nYour Company" },
+            { name: "Meeting Invitation", desc: "Schedule a call", subject: "Let’s Schedule a Quick Call", body: "Hi [Name],\n\nI’d love to schedule a quick call to discuss how we can help you.\n\nBest regards,\nYour Company" }
         ];
 
         function loadTemplate(index) {
@@ -197,82 +189,24 @@
             const subject = document.getElementById('subject').value.trim() || "(No subject)";
             const body = document.getElementById('body').value.trim() || "Your email body...";
             document.getElementById('live-preview').innerHTML = 
-                `<strong>Subject:</strong> ${subject}<br><br>${body.replace(/\n/g, '<br>')}<br><br>Best regards,<br>Your Company`;
+                `<strong>Subject:</strong> \( {subject}<br><br> \){body.replace(/\n/g, '<br>')}<br><br><em>Best regards,<br>Your Company</em>`;
         }
 
         function copyToGmail() {
             const subject = document.getElementById('subject').value.trim();
             const body = document.getElementById('body').value.trim();
-            const fullEmail = `Subject: ${subject}\n\n${body}\n\nBest regards,\nYour Company`;
+            const fullEmail = `Subject: \( {subject}\n\n \){body}\n\nBest regards,\nYour Company`;
             navigator.clipboard.writeText(fullEmail).then(() => {
                 alert("✅ Copied to clipboard! Paste into Gmail.");
             });
         }
 
-        // Run Analysis with Score & Spam Detection
-        async function runAnalysis() {
-            const bodyText = document.getElementById('body').value.trim();
-            if (!bodyText) return alert("Please write the email body");
+        // Auto-update live preview while typing
+        document.getElementById('subject').addEventListener('input', updateLivePreview);
+        document.getElementById('body').addEventListener('input', updateLivePreview);
 
-            const payload = {
-                subject: document.getElementById('subject').value,
-                body: bodyText,
-                org_name: "Your Company"
-            };
-
-            const btn = document.querySelector('button[onclick="runAnalysis()"]');
-            const original = btn.textContent;
-            btn.textContent = "Analyzing...";
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/analyze-email', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json();
-
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-
-                // Show results section
-                const resultsDiv = document.getElementById('results');
-                resultsDiv.classList.remove('hidden');
-
-                // Update Score & Spam Risk
-                document.getElementById('score-value').textContent = data.email_score;
-                document.getElementById('score-bar').style.width = data.email_score + '%';
-
-                const spamEl = document.getElementById('spam-risk');
-                spamEl.textContent = data.spam_risk;
-                spamEl.className = data.spam_risk === 'High' ? 'font-semibold text-red-600' :
-                                   data.spam_risk === 'Medium' ? 'font-semibold text-amber-600' : 
-                                   'font-semibold text-green-600';
-
-                // Build Report
-                let reportHTML = '';
-                data.report.forEach(item => {
-                    const color = item.type === 'warning' ? 'text-red-600' : 'text-amber-600';
-                    reportHTML += `
-                        <div class="flex gap-3">
-                            <span class="${color}">●</span>
-                            <p>${item.msg}</p>
-                        </div>`;
-                });
-
-                document.getElementById('report-list').innerHTML = reportHTML;
-
-            } catch(e) {
-                alert("Analysis failed. Please try again.");
-            }
-
-            btn.textContent = original;
-            btn.disabled = false;
-        }
+        // Initial preview
+        window.onload = updateLivePreview;
     </script>
 </body>
 </html>
