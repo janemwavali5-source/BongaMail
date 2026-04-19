@@ -237,11 +237,27 @@ def analyze_email():
 @app.route("/owner/unlock")
 def owner_unlock():
     key = request.args.get("key")
+  # Create permanent paid record in database
+        conn = sqlite3.connect('payments.db')
+        c = conn.cursor()
+        now = datetime.now()
+        
+        c.execute('''
+            INSERT OR REPLACE INTO transactions 
+            (phone, amount, transaction_ref, timestamp, status, approved_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (phone, 5000, "OWNER_BYPASS", 
+              now.strftime("%Y-%m-%d %H:%M:%S"), 
+              "paid", 
+              now.strftime("%Y-%m-%d %H:%M:%S")))
+        
+        conn.commit()
+        conn.close()
 
     # Change this to a strong secret key that only you know
     if key == "BongaMail2030?":        
         session["unlocked"] = True
-        session["pending_phone"] = "254700000000"   # This helps the system recognize the user as paid
+        session["phone"] = "254700000000"   # This helps the system recognize the user as paid
         session.permanent = True                    # Keeps the session active longer
 
         return redirect(url_for("index"))
