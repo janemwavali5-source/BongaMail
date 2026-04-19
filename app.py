@@ -1,32 +1,36 @@
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 import sqlite3
-from datetime import datetime
-import requests
-import base64
+from datetime import datetime, timedelta
 import os
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("Studymaster", "Skyward")
 
-# ============== WORD LISTS ==============
-UNSUBSCRIBE_REQUIRED = ["unsubscribe", "un-subscribe", "opt out"]
-ADDRESS_REQUIRED = ["address", "p.o.box", "po box", "physical address"]
-HYPE_WORDS = ["100%", "guarantee", "best in", "number one", "instant", "free forever"]
-CTA_WORDS = ["click", "reply", "book", "schedule", "download", "sign up", "get started", "shop now", "learn more", "contact us"]
+# ============== IMPROVED WORD LISTS ==============
+UNSUBSCRIBE_REQUIRED = ["unsubscribe", "un-subscribe", "opt out", "opt-out", "unsubscribe here", "stop receiving"]
+ADDRESS_REQUIRED = ["address", "p.o.box", "po box", "physical address", "location", "our office", "head office", "registered office"]
+HYPE_WORDS = ["100%", "guarantee", "best in", "number one", "instant", "free forever", "limited time", "exclusive", "secret", 
+              "once in a lifetime", "unbelievable", "amazing deal", "super", "mega"]
+CTA_WORDS = ["click", "reply", "book", "schedule", "download", "sign up", "get started", "shop now", "learn more", "contact us", 
+             "buy now", "order now", "claim", "join", "register", "visit", "call now", "get yours", "start free"]
+URGENCY_WORDS = ["urgent", "limited", "today only", "act now", "last chance", "hurry", "expires soon", "ending soon", 
+                 "final hours", "don't miss", "only left", "while stocks last", "countdown"]
+FRIENDLY_WORDS = ["thank you", "appreciate", "happy", "great", "wonderful", "excited", "pleased", "delighted", "grateful", 
+                  "looking forward", "love", "enjoy", "hope"]
 
 def init_db():
     conn = sqlite3.connect('payments.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        phone TEXT NOT NULL,
+        phone TEXT NOT NULL UNIQUE,
         amount INTEGER NOT NULL,
         checkout_request_id TEXT,
         merchant_request_id TEXT,
         mpesa_receipt TEXT,
         status TEXT DEFAULT 'pending',
-        timestamp TEXT NOT NULL
-        paid_at TEXT,      
+        timestamp TEXT NOT NULL,
+        paid_at TEXT,
         expires_at TEXT
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS user_emails (
@@ -45,13 +49,8 @@ init_db()
 
 # ============== HELPER: Check if 30-day access is still valid ==============
 def is_unlocked(phone=None):
-    """
-    Checks the database to see if the user has a valid paid transaction
-    that has not yet expired (30 days from payment date).
-    """
     if not phone:
         phone = session.get("phone")
-    
     if not phone:
         return False
 
@@ -72,7 +71,6 @@ def is_unlocked(phone=None):
         return False
 
     try:
-        # Convert stored ISO string back to datetime
         expires = datetime.fromisoformat(row[0].replace('Z', '+00:00'))
         return datetime.now() < expires
     except Exception:
@@ -81,7 +79,8 @@ def is_unlocked(phone=None):
 # ============== MAIN ROUTES ==============
 @app.route("/", methods=["GET", "POST"])
 def index():
-    unlocked = session.get("unlocked", False)
+    phone = session.get("phone")
+    unlocked = is_unlocked(phone)
     message = None
 
     if request.method == "POST":
@@ -95,15 +94,20 @@ def index():
                 phone = "254" + phone
 
             if phone.startswith("254") and len(phone) == 12:
-                result = initiate_stk_push(phone)
-                if result.get("ResponseCode") == "0":
+                result = initiate_stk_push(phone)  # Define this function if using real M-Pesa
+                if result and result.get("ResponseCode") == "0":
                     conn = sqlite3.connect('payments.db')
                     c = conn.cursor()
-                    c.execute('''INSERT INTO transactions (phone, amount, checkout_request_id, timestamp, status)
-                                 VALUES (?, ?, ?, ?, ?)''', 
-                              (phone, 5000, result.get("CheckoutRequestID"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "pending"))
+                    now = datetime.now()
+                    expires = now + timedelta(days=30)
+                    c.execute('''INSERT INTO transactions 
+                                 (phone, amount, checkout_request_id, timestamp, status, paid_at, expires_at)
+                                 VALUES (?, ?, ?, ?, ?, ?, ?)''', 
+                              (phone, 5000, result.get("CheckoutRequestID"), 
+                               now.isoformat(), "pending", now.isoformat(), expires.isoformat()))
                     conn.commit()
                     conn.close()
+                    session["phone"] = phone
                     session["pending_phone"] = phone
                     message = f"✅ STK Push sent to {phone}. Check your phone!"
                 else:
@@ -117,6 +121,7 @@ def index():
 
     return render_template("index.html", unlocked=unlocked, message=message)
 
+# ============== LOAD TEMPLATE ==============
 @app.route("/load_template", methods=["POST"])
 def load_template():
     template_id = int(request.form.get("template_id", 0))
@@ -131,8 +136,15 @@ def load_template():
     selected = templates[template_id % len(templates)]
     return render_template("index.html", unlocked=True, message=f"✅ Template loaded: {selected['subject']}")
 
+# ============== ANALYZE EMAIL (with 30-day protection) ==============
 @app.route('/analyze-email', methods=['POST'])
 def analyze_email():
+    phone = session.get("phone")
+    if not is_unlocked(phone):
+        return render_template("index.html", 
+                               unlocked=False, 
+                               message="❌ Your 30-day access has expired. Please make another payment to continue using Bonga Mail.")
+
     if request.is_json:
         data = request.get_json()
     else:
@@ -143,7 +155,7 @@ def analyze_email():
     org_name = data.get('org_name', 'Your Company')
 
     if not body:
-        return jsonify({"error": "Email body is required"}), 400
+        return render_template("index.html", unlocked=True, message="❌ Email body is required")
 
     body_lower = body.lower()
     report = []
@@ -156,7 +168,7 @@ def analyze_email():
         score -= 25
 
     if not any(word in body_lower for word in ADDRESS_REQUIRED):
-        report.append({"type": "warning", "msg": "Missing physical address (CAN-SPAM / legal requirement)"})
+        report.append({"type": "warning", "msg": "Missing physical address (legal requirement)"})
         score -= 15
 
     # === SPAM & HYPE CHECKS ===
@@ -167,7 +179,7 @@ def analyze_email():
         if hype_count >= 2:
             spam_risk = "High"
 
-    # Urgency words (use sparingly)
+    # Urgency words
     urgency_count = sum(1 for word in URGENCY_WORDS if word in body_lower)
     if urgency_count > 2:
         report.append({"type": "info", "msg": "Too many urgency words - can trigger spam filters"})
@@ -178,16 +190,15 @@ def analyze_email():
         report.append({"type": "warning", "msg": "Weak or missing Call-To-Action"})
         score -= 15
 
-    # === ADDITIONAL SPAM SIGNALS ===
+    # Additional spam signals
     if body.count('!') > 6:
-        report.append({"type": "warning", "msg": "Too many exclamation marks (!)" })
+        report.append({"type": "warning", "msg": "Too many exclamation marks (!)"})
         score -= 10
 
     if len([c for c in body if c.isupper()]) > len(body) * 0.25:
         report.append({"type": "warning", "msg": "Too much uppercase text"})
         score -= 12
 
-    # Link count
     link_count = body_lower.count("http")
     if link_count > 5:
         report.append({"type": "warning", "msg": f"Too many links ({link_count})"})
@@ -201,17 +212,9 @@ def analyze_email():
         report.append({"type": "info", "msg": "Email is very long - consider shortening"})
         score -= 5
 
-    # Tone detection
-    tone = "neutral"
-    if any(word in body_lower for word in FRIENDLY_WORDS):
-        tone = "friendly"
-    elif any(word in body_lower for word in URGENT_WORDS):
-        tone = "urgent"
-
     # Final score bounds
     score = max(30, min(100, score))
 
-    # Adjust spam risk based on final score
     if score < 55:
         spam_risk = "High"
     elif score < 75:
@@ -221,30 +224,27 @@ def analyze_email():
     signature = f"\n\nBest regards,\n{org_name}"
     preview = f"Subject: {subject or '(No subject)'}\n\n{body}{signature}"
 
-  
-
     return render_template("index.html", 
-                         unlocked=True,
-                         message="Analysis Complete",
-                         report=report,
-                         email_score=score,
-                         spam_risk=spam_risk,
-                         preview=preview)
+                           unlocked=True,
+                           message="✅ Analysis Complete",
+                           report=report,
+                           email_score=score,
+                           spam_risk=spam_risk,
+                           preview=preview)
 
 # ============== OWNER UNLOCK ==============
 @app.route("/owner/unlock")
 def owner_unlock():
     key = request.args.get("key")
-    if key == "BongaMail2030?":   # Change this for better security
+    if key == "BongaMail2030?":
         session["unlocked"] = True
-        session["pending_phone"] = "254700000000"
+        session["phone"] = "254700000000"
         return redirect(url_for("index"))
     return "Invalid owner key", 403
 
-# ============== ADMIN PASSWORD ==============
+# ============== ADMIN ROUTES ==============
 ADMIN_PASSWORD = "BongaMail2030?"
 
-# ============== ADMIN LOGIN ==============
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     error = None
@@ -256,9 +256,7 @@ def admin_login():
             error = "Incorrect password. Please try again."
     
     return render_template('admin/login.html')
-    
 
-# ============== ADMIN DASHBOARD ==============
 @app.route("/admin/dashboard")
 def admin_dashboard():
     if not session.get("admin_logged_in"):
@@ -270,10 +268,8 @@ def admin_dashboard():
     pending = c.fetchall()
     conn.close()
 
-    return render_template('admin/dashboard.html')
-    
+    return render_template('admin/dashboard.html', pending=pending)
 
-# ============== MANUAL CONFIRM ==============
 @app.route("/admin/manual_confirm", methods=["POST"])
 def manual_confirm():
     if not session.get("admin_logged_in"):
@@ -287,14 +283,21 @@ def manual_confirm():
 
     conn = sqlite3.connect('payments.db')
     c = conn.cursor()
-    c.execute("UPDATE transactions SET status='paid', mpesa_receipt=? WHERE checkout_request_id=?", (receipt, checkout_id))
+    now = datetime.now()
+    expires = now + timedelta(days=30)
+
+    c.execute("""UPDATE transactions 
+                 SET status='paid', 
+                     mpesa_receipt=?, 
+                     paid_at=?, 
+                     expires_at=? 
+                 WHERE checkout_request_id=?""", 
+              (receipt, now.isoformat(), expires.isoformat(), checkout_id))
     conn.commit()
     conn.close()
 
-    return redirect("/admin/dashboard.html")
+    return redirect("/admin/dashboard")
 
-
-# ============== ADMIN ADD USER ==============
 @app.route("/admin/add_user", methods=["GET", "POST"])
 def admin_add_user():
     if not session.get("admin_logged_in"):
@@ -305,8 +308,6 @@ def admin_add_user():
 
     if request.method == "POST":
         phone = request.form.get("phone", "").strip()
-        
-        # Clean phone number
         phone = "".join(c for c in phone if c.isdigit())
         if phone.startswith("0"):
             phone = "254" + phone[1:]
@@ -317,17 +318,21 @@ def admin_add_user():
             try:
                 conn = sqlite3.connect('payments.db')
                 c = conn.cursor()
+                now = datetime.now()
+                expires = now + timedelta(days=30)
                 c.execute('''INSERT INTO transactions 
-                             (phone, amount, checkout_request_id, timestamp, status, mpesa_receipt)
-                             VALUES (?, ?, ?, ?, ?, ?)''',
+                             (phone, amount, checkout_request_id, timestamp, status, mpesa_receipt, paid_at, expires_at)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                           (phone, 5000, 
                            "MANUAL_" + datetime.now().strftime("%Y%m%d%H%M%S"), 
-                           datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 
+                           now.isoformat(), 
                            "paid", 
-                           "MANUAL_ADD"))
+                           "MANUAL_ADD",
+                           now.isoformat(),
+                           expires.isoformat()))
                 conn.commit()
                 conn.close()
-                message = f"✅ User {phone} has been successfully unlocked!"
+                message = f"✅ User {phone} has been successfully unlocked for 30 days!"
             except Exception as e:
                 error = f"Database error: {str(e)}"
         else:
@@ -335,7 +340,6 @@ def admin_add_user():
 
     return render_template("admin/add_user.html", message=message, error=error)
 
-# ============== ADMIN LOGOUT ==============
 @app.route("/admin/logout")
 def admin_logout():
     session.pop("admin_logged_in", None)
