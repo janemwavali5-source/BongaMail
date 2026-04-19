@@ -26,6 +26,8 @@ def init_db():
         mpesa_receipt TEXT,
         status TEXT DEFAULT 'pending',
         timestamp TEXT NOT NULL
+        paid_at TEXT,      
+        expires_at TEXT
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS user_emails (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,6 +43,40 @@ def init_db():
 
 init_db()
 
+# ============== HELPER: Check if 30-day access is still valid ==============
+def is_unlocked(phone=None):
+    """
+    Checks the database to see if the user has a valid paid transaction
+    that has not yet expired (30 days from payment date).
+    """
+    if not phone:
+        phone = session.get("phone")
+    
+    if not phone:
+        return False
+
+    conn = sqlite3.connect('payments.db')
+    c = conn.cursor()
+    
+    c.execute("""SELECT expires_at 
+                 FROM transactions 
+                 WHERE phone = ? 
+                   AND status = 'paid' 
+                 ORDER BY paid_at DESC 
+                 LIMIT 1""", (phone,))
+    
+    row = c.fetchone()
+    conn.close()
+
+    if not row or not row[0]:
+        return False
+
+    try:
+        # Convert stored ISO string back to datetime
+        expires = datetime.fromisoformat(row[0].replace('Z', '+00:00'))
+        return datetime.now() < expires
+    except Exception:
+        return False
 
 # ============== MAIN ROUTES ==============
 @app.route("/", methods=["GET", "POST"])
