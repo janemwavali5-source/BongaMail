@@ -232,18 +232,28 @@ def analyze_email():
                            spam_risk=spam_risk,
                            preview=preview)
 
+
 # ============== OWNER UNLOCK (Bypass Payment) ==============
 @app.route("/owner/unlock")
 def owner_unlock():
     key = request.args.get("key")
-    
-    if key == "BongaMail2030?":          # Your current password
+
+    # Change this to a strong secret key that only you know
+    if key == "BongaMail2030?":        
         session["unlocked"] = True
-        session["pending_phone"] = "254700000000"   # Important: Use "pending_phone"
-        session.permanent = True                    # Keep session longer
+        session["pending_phone"] = "254700000000"   # This helps the system recognize the user as paid
+        session.permanent = True                    # Keeps the session active longer
+
         return redirect(url_for("index"))
     else:
-        return "Invalid owner key. Access denied.", 403
+        return """
+        <h2 style="color:red; text-align:center; margin-top:100px;">
+            Invalid owner key. Access denied.
+        </h2>
+        <p style="text-align:center;">
+            <a href="/">← Go back to homepage</a>
+        </p>
+        """, 403
 
 # ============== ADMIN ROUTES ==============
 ADMIN_PASSWORD = "BongaMail2030?"
