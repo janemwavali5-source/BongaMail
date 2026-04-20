@@ -79,48 +79,56 @@ def is_unlocked(phone=None):
 # ============== MAIN ROUTES ==============
 @app.route("/", methods=["GET", "POST"])
 def index():
-    phone = session.get("phone")
-    unlocked = is_unlocked(phone)
+    unlocked = session.get("unlocked", False)
     message = None
 
     if request.method == "POST":
         action = request.form.get("action")
-        if action == "pay":
-            raw_phone = request.form.get("phone", "").strip()
-            phone = "".join(c for c in raw_phone if c.isdigit())
-            if phone.startswith("0"):
-                phone = "254" + phone[1:]
-            elif len(phone) == 9:
-                phone = "254" + phone
 
-            if phone.startswith("254") and len(phone) == 12:
-                result = initiate_stk_push(phone)  # Define this function if using real M-Pesa
-                if result and result.get("ResponseCode") == "0":
+        if action == "unlock":
+            phone = request.form.get("phone", "").strip()
+            trans_ref = request.form.get("trans_ref", "").strip()
+
+            if phone and trans_ref:
+                try:
                     conn = sqlite3.connect('payments.db')
                     c = conn.cursor()
-                    now = datetime.now()
-                    expires = now + timedelta(days=30)
-                    c.execute('''INSERT INTO transactions 
-                                 (phone, amount, checkout_request_id, timestamp, status, paid_at, expires_at)
-                                 VALUES (?, ?, ?, ?, ?, ?, ?)''', 
-                              (phone, 5000, result.get("CheckoutRequestID"), 
-                               now.isoformat(), "pending", now.isoformat(), expires.isoformat()))
+                    c.execute('''
+                        INSERT INTO transactions 
+                        (phone, amount, transaction_ref, timestamp, status) 
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (phone, 5000, trans_ref, 
+                          datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "pending"))
                     conn.commit()
                     conn.close()
-                    session["phone"] = phone
-                    session["pending_phone"] = phone
-                    message = f"✅ STK Push sent to {phone}. Check your phone!"
-                else:
-                    message = "Failed to initiate payment"
+
+                    message = "Payment recorded. Waiting for manual approval."
+                except sqlite3.IntegrityError:
+                    message = "This transaction reference has already been used."
             else:
-                message = "Invalid phone number"
+                message = "Please provide phone number and M-Pesa transaction reference."
 
         elif action == "logout":
             session.clear()
             return redirect(url_for("index"))
 
-    return render_template("index.html", unlocked=unlocked, message=message)
+    # Check if this phone has a paid record in the database
+    phone = session.get("phone")
+    if phone:
+        conn = sqlite3.connect('payments.db')
+        c = conn.cursor()
+        c.execute('''
+            SELECT status FROM transactions 
+            WHERE phone = ? AND status = 'paid' 
+            ORDER BY timestamp DESC LIMIT 1
+        ''', (phone,))
+        row = c.fetchone()
+        conn.close()
 
+        if row and row[0] == 'paid':
+            unlocked = True
+
+    return render_template("index.html", unlocked=unlocked, message=message)
 # ============== LOAD TEMPLATE ==============
 @app.route("/load_template", methods=["POST"])
 def load_template():
@@ -233,47 +241,6 @@ def analyze_email():
                            preview=preview)
 
 
-# ============== OWNER UNLOCK (Bypass Payment) ==============
-@app.route("/owner/unlock")
-def owner_unlock():
-    key = request.args.get("key")
-
-    # Use a clean, strong key (change this to something only you know)
-    if key == "BongaMail2030":
-        phone = "254700000000"   # Owner's special phone
-
-        # Create permanent paid record
-        conn = sqlite3.connect('payments.db')
-        c = conn.cursor()
-        now = datetime.now()
-        expires = now + timedelta(days=3650)   # 10 years access for owner
-
-        c.execute('''
-            INSERT OR REPLACE INTO transactions 
-            (phone, amount, checkout_request_id, timestamp, status, paid_at, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (phone, 5000, "OWNER_BYPASS", 
-              now.isoformat(), "paid", now.isoformat(), expires.isoformat()))
-        
-        conn.commit()
-        conn.close()
-
-        # Set session
-        session["unlocked"] = True
-        session["phone"] = phone
-        session.permanent = True
-
-        return redirect(url_for("index"))
-    else:
-        return """
-        <h2 style="color:red; text-align:center; margin-top:100px;">
-            Invalid owner key.<br>
-            Access denied.
-        </h2>
-        <p style="text-align:center;">
-            <a href="/">← Go back to homepage</a>
-        </p>
-        """, 403
 #======ADMIN ROUTES ==============
 ADMIN_PASSWORD = "BongaMail2030?"
 
