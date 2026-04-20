@@ -102,6 +102,8 @@ def index():
                     conn.commit()
                     conn.close()
 
+                    # CRITICAL: Save the phone in session
+                    session["phone"] = phone
                     message = "Payment recorded. Waiting for manual approval."
                 except sqlite3.IntegrityError:
                     message = "This transaction reference has already been used."
@@ -112,7 +114,7 @@ def index():
             session.clear()
             return redirect(url_for("index"))
 
-    # Check if this phone has been approved (paid)
+    # Check if this phone has a paid record
     phone = session.get("phone")
     if phone:
         try:
@@ -129,7 +131,7 @@ def index():
             if row and row[0] == 'paid':
                 unlocked = True
         except Exception:
-            pass  # Prevent crash if DB error
+            pass
 
     return render_template("index.html", unlocked=unlocked, message=message)
 # ============== LOAD TEMPLATE ==============
