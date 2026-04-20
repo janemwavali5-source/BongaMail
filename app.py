@@ -237,41 +237,44 @@ def analyze_email():
 @app.route("/owner/unlock")
 def owner_unlock():
     key = request.args.get("key")
-  # Create permanent paid record in database
+
+    # Use a clean, strong key (change this to something only you know)
+    if key == "BongaMail2030":
+        phone = "254700000000"   # Owner's special phone
+
+        # Create permanent paid record
         conn = sqlite3.connect('payments.db')
         c = conn.cursor()
         now = datetime.now()
-        
+        expires = now + timedelta(days=3650)   # 10 years access for owner
+
         c.execute('''
             INSERT OR REPLACE INTO transactions 
-            (phone, amount, transaction_ref, timestamp, status, approved_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (phone, amount, checkout_request_id, timestamp, status, paid_at, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (phone, 5000, "OWNER_BYPASS", 
-              now.strftime("%Y-%m-%d %H:%M:%S"), 
-              "paid", 
-              now.strftime("%Y-%m-%d %H:%M:%S")))
+              now.isoformat(), "paid", now.isoformat(), expires.isoformat()))
         
         conn.commit()
         conn.close()
 
-    # Change this to a strong secret key that only you know
-    if key == "BongaMail2030?":        
+        # Set session
         session["unlocked"] = True
-        session["phone"] = "254700000000"   # This helps the system recognize the user as paid
-        session.permanent = True                    # Keeps the session active longer
+        session["phone"] = phone
+        session.permanent = True
 
         return redirect(url_for("index"))
     else:
         return """
         <h2 style="color:red; text-align:center; margin-top:100px;">
-            Invalid owner key. Access denied.
+            Invalid owner key.<br>
+            Access denied.
         </h2>
         <p style="text-align:center;">
             <a href="/">← Go back to homepage</a>
         </p>
         """, 403
-
-# ============== ADMIN ROUTES ==============
+#======ADMIN ROUTES ==============
 ADMIN_PASSWORD = "BongaMail2030?"
 
 @app.route("/admin/login", methods=["GET", "POST"])
