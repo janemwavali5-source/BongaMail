@@ -76,7 +76,7 @@ def is_unlocked(phone=None):
     except Exception:
         return False
 
-# ============== MAIN ROUTES ==============
+# ============== MAIN ROUTES ================
 @app.route("/", methods=["GET", "POST"])
 def index():
     unlocked = session.get("unlocked", False)
@@ -112,21 +112,24 @@ def index():
             session.clear()
             return redirect(url_for("index"))
 
-    # Check if this phone has a paid record in the database
+    # Check if this phone has been approved (paid)
     phone = session.get("phone")
     if phone:
-        conn = sqlite3.connect('payments.db')
-        c = conn.cursor()
-        c.execute('''
-            SELECT status FROM transactions 
-            WHERE phone = ? AND status = 'paid' 
-            ORDER BY timestamp DESC LIMIT 1
-        ''', (phone,))
-        row = c.fetchone()
-        conn.close()
+        try:
+            conn = sqlite3.connect('payments.db')
+            c = conn.cursor()
+            c.execute('''
+                SELECT status FROM transactions 
+                WHERE phone = ? AND status = 'paid' 
+                ORDER BY timestamp DESC LIMIT 1
+            ''', (phone,))
+            row = c.fetchone()
+            conn.close()
 
-        if row and row[0] == 'paid':
-            unlocked = True
+            if row and row[0] == 'paid':
+                unlocked = True
+        except Exception:
+            pass  # Prevent crash if DB error
 
     return render_template("index.html", unlocked=unlocked, message=message)
 # ============== LOAD TEMPLATE ==============
