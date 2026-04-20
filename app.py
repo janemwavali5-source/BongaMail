@@ -153,19 +153,33 @@ def load_template():
 @app.route('/analyze-email', methods=['POST'])
 def analyze_email():
     phone = session.get("phone")
-    if not is_unlocked(phone):
-        return render_template("index.html", 
-                               unlocked=False, 
-                               message="❌ Your 30-day access has expired. Please make another payment to continue using Bonga Mail.")
+    
+    # Check if user is unlocked (manual payment flow)
+    if not session.get("unlocked", False):
+        if phone:
+            conn = sqlite3.connect('payments.db')
+            c = conn.cursor()
+            c.execute('''
+                SELECT status FROM transactions 
+                WHERE phone = ? AND status = 'paid' 
+                LIMIT 1
+            ''', (phone,))
+            row = c.fetchone()
+            conn.close()
+            
+            if not row or row[0] != 'paid':
+                return render_template("index.html", 
+                                     unlocked=False, 
+                                     message="❌ Your access has not been approved yet.")
+        else:
+            return render_template("index.html", 
+                                 unlocked=False, 
+                                 message="❌ Please submit payment details first.")
 
-    if request.is_json:
-        data = request.get_json()
-    else:
-        data = request.form.to_dict()
-
-    subject = data.get('subject', '').strip()
-    body = data.get('body', '').strip()
-    org_name = data.get('org_name', 'Your Company')
+    # === Analysis Logic ===
+    subject = request.form.get('subject', '').strip()
+    body = request.form.get('body', '').strip()
+    org_name = 'Your Company'
 
     if not body:
         return render_template("index.html", unlocked=True, message="❌ Email body is required")
@@ -175,67 +189,34 @@ def analyze_email():
     score = 100
     spam_risk = "Low"
 
-    # === COMPLIANCE CHECKS ===
     if not any(word in body_lower for word in UNSUBSCRIBE_REQUIRED):
-        report.append({"type": "warning", "msg": "Missing unsubscribe link (high spam risk)"})
+        report.append("⚠️ Add unsubscribe link (high spam risk)")
         score -= 25
 
     if not any(word in body_lower for word in ADDRESS_REQUIRED):
-        report.append({"type": "warning", "msg": "Missing physical address (legal requirement)"})
+        report.append("⚠️ Add physical address (legal requirement)")
         score -= 15
 
-    # === SPAM & HYPE CHECKS ===
     hype_count = sum(1 for word in HYPE_WORDS if word in body_lower)
     if hype_count > 0:
-        report.append({"type": "warning", "msg": f"Contains {hype_count} hype word(s)"})
+        report.append(f"⚠️ Contains {hype_count} hype word(s)")
         score -= hype_count * 10
-        if hype_count >= 2:
-            spam_risk = "High"
 
-    # Urgency words
-    urgency_count = sum(1 for word in URGENCY_WORDS if word in body_lower)
-    if urgency_count > 2:
-        report.append({"type": "info", "msg": "Too many urgency words - can trigger spam filters"})
-        score -= 12
-
-    # Call-To-Action
     if not any(word in body_lower for word in CTA_WORDS):
-        report.append({"type": "warning", "msg": "Weak or missing Call-To-Action"})
+        report.append("⚠️ Add a clear Call-To-Action")
         score -= 15
 
-    # Additional spam signals
-    if body.count('!') > 6:
-        report.append({"type": "warning", "msg": "Too many exclamation marks (!)"})
-        score -= 10
-
-    if len([c for c in body if c.isupper()]) > len(body) * 0.25:
-        report.append({"type": "warning", "msg": "Too much uppercase text"})
-        score -= 12
-
-    link_count = body_lower.count("http")
-    if link_count > 5:
-        report.append({"type": "warning", "msg": f"Too many links ({link_count})"})
-        score -= 10
-
-    # Length checks
     if len(body) < 60:
-        report.append({"type": "warning", "msg": "Email body is too short"})
+        report.append("⚠️ Email body is too short")
         score -= 8
-    elif len(body) > 900:
-        report.append({"type": "info", "msg": "Email is very long - consider shortening"})
-        score -= 5
 
-    # Final score bounds
     score = max(30, min(100, score))
-
     if score < 55:
         spam_risk = "High"
     elif score < 75:
         spam_risk = "Medium"
 
-    # Preview
-    signature = f"\n\nBest regards,\n{org_name}"
-    preview = f"Subject: {subject or '(No subject)'}\n\n{body}{signature}"
+    preview = f"Subject: {subject or '(No subject)'}\n\n{body}\n\nBest regards,\n{org_name}"
 
     return render_template("index.html", 
                            unlocked=True,
@@ -244,8 +225,6 @@ def analyze_email():
                            email_score=score,
                            spam_risk=spam_risk,
                            preview=preview)
-
-
 #======ADMIN ROUTES ==============
 ADMIN_PASSWORD = "BongaMail2030?"
 
