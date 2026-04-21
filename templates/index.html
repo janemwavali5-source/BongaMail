@@ -60,19 +60,7 @@
         <div class="px-8 py-8">
             <h3 class="font-semibold text-xl mb-6">✍️ Compose Your Email</h3>
 
-            <!-- Templates -->
-            <div class="mb-10">
-                <p class="text-sm font-medium text-gray-600 mb-4">Quick Templates</p>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {% for template in templates %}
-                    <button onclick="loadTemplate({{ loop.index0 }})" 
-                            class="text-left p-4 border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition">
-                        <strong>{{ template.name }}</strong><br>
-                        <small class="text-gray-500">{{ template.desc }}</small>
-                    </button>
-                    {% endfor %}
-                </div>
-            </div>
+            
 
             <!-- Compose Form -->
             <form id="compose-form" method="POST" action="/analyze-email">
