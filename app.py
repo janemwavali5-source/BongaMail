@@ -82,6 +82,46 @@ def index():
     unlocked = session.get("unlocked", False)
     message = None
 
+    # Define templates here so they always show when unlocked
+    templates = [
+        { 
+            "name": "Marketing Offer", 
+            "desc": "Promote a product", 
+            "subject": "Special Offer: 20% Off This Week!", 
+            "body": "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount.\n\nBest regards,\nYour Company" 
+        },
+        { 
+            "name": "Follow-up Email", 
+            "desc": "After meeting", 
+            "subject": "Follow-up on Our Meeting", 
+            "body": "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up...\n\nBest regards,\nYour Company" 
+        },
+        { 
+            "name": "Newsletter", 
+            "desc": "Monthly update", 
+            "subject": "Monthly Newsletter", 
+            "body": "Dear valued customer,\n\nHere’s what’s new this month...\n\nBest regards,\nYour Company" 
+        },
+        { 
+            "name": "Thank You", 
+            "desc": "Thank customer", 
+            "subject": "Thank You for Your Purchase!", 
+            "body": "Hi [Name],\n\nThank you so much for your purchase!\n\nBest regards,\nYour Company" 
+        },
+        { 
+            "name": "Invoice Request", 
+            "desc": "Payment request", 
+            "subject": "Invoice #INV-2026", 
+            "body": "Dear [Name],\n\nPlease find your invoice attached.\nTotal due: KSh XXX\n\nBest regards,\nYour Company" 
+        },
+        { 
+            "name": "Meeting Invitation", 
+            "desc": "Schedule a call", 
+            "subject": "Let’s Schedule a Quick Call", 
+            "body": "Hi [Name],\n\nI’d love to schedule a quick call to discuss how we can help you.\n\nBest regards,\nYour Company" 
+        }
+    ]
+
     if request.method == "POST":
         action = request.form.get("action")
 
@@ -102,7 +142,6 @@ def index():
                     conn.commit()
                     conn.close()
 
-                    # CRITICAL: Save the phone in session
                     session["phone"] = phone
                     message = "Payment recorded. Waiting for manual approval."
                 except sqlite3.IntegrityError:
@@ -133,7 +172,10 @@ def index():
         except Exception:
             pass
 
-    return render_template("index.html", unlocked=unlocked, message=message)
+    return render_template("index.html", 
+                           unlocked=unlocked, 
+                           message=message, 
+                           templates=templates)   # ← This was missing
 # ============== LOAD TEMPLATE ==============
 @app.route("/load_template", methods=["POST"])
 def load_template():
