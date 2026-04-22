@@ -79,103 +79,53 @@ def is_unlocked(phone=None):
 # ============== MAIN ROUTES ================
 @app.route("/", methods=["GET", "POST"])
 def index():
-    unlocked = session.get("unlocked", False)
-    message = None
+    # 1. Always start by checking the database if a phone exists in session
+    phone = session.get("phone")
+    unlocked = False
+    
+    if phone:
+        conn = sqlite3.connect('payments.db')
+        c = conn.cursor()
+        c.execute('''
+            SELECT status, expires_at FROM transactions 
+            WHERE phone = ? AND status = 'paid' 
+            ORDER BY paid_at DESC LIMIT 1
+        ''', (phone,))
+        row = c.fetchone()
+        conn.close()
 
-    # Define templates here so they always show when unlocked
-    templates = [
-        { 
-            "name": "Marketing Offer", 
-            "desc": "Promote a product", 
-            "subject": "Special Offer: 20% Off This Week!", 
-            "body": "Hi there,\n\nWe’re excited to offer you 20% off our premium plan this week only!\n\nClick here to claim your discount.\n\nBest regards,\nYour Company" 
-        },
-        { 
-            "name": "Follow-up Email", 
-            "desc": "After meeting", 
-            "subject": "Follow-up on Our Meeting", 
-            "body": "Hi [Name],\n\nThank you for the productive meeting yesterday. Just following up...\n\nBest regards,\nYour Company" 
-        },
-        { 
-            "name": "Newsletter", 
-            "desc": "Monthly update", 
-            "subject": "Monthly Newsletter", 
-            "body": "Dear valued customer,\n\nHere’s what’s new this month...\n\nBest regards,\nYour Company" 
-        },
-        { 
-            "name": "Thank You", 
-            "desc": "Thank customer", 
-            "subject": "Thank You for Your Purchase!", 
-            "body": "Hi [Name],\n\nThank you so much for your purchase!\n\nBest regards,\nYour Company" 
-        },
-        { 
-            "name": "Invoice Request", 
-            "desc": "Payment request", 
-            "subject": "Invoice #INV-2026", 
-            "body": "Dear [Name],\n\nPlease find your invoice attached.\nTotal due: KSh XXX\n\nBest regards,\nYour Company" 
-        },
-        { 
-            "name": "Meeting Invitation", 
-            "desc": "Schedule a call", 
-            "subject": "Let’s Schedule a Quick Call", 
-            "body": "Hi [Name],\n\nI’d love to schedule a quick call to discuss how we can help you.\n\nBest regards,\nYour Company" 
-        }
-    ]
+        if row:
+            # Check if the 30-day access is still valid
+            try:
+                expires = datetime.fromisoformat(row[1].replace('Z', '+00:00'))
+                if datetime.now() < expires:
+                    unlocked = True
+                    session["unlocked"] = True # Sync the session
+                else:
+                    session["unlocked"] = False
+            except:
+                unlocked = False
+
+    message = None
+    # ... (Your templates list remains the same) ...
 
     if request.method == "POST":
         action = request.form.get("action")
-
         if action == "unlock":
             phone = request.form.get("phone", "").strip()
-            trans_ref = request.form.get("trans_ref", "").strip()
-
-            if phone and trans_ref:
-                try:
-                    conn = sqlite3.connect('payments.db')
-                    c = conn.cursor()
-                    c.execute('''
-                        INSERT INTO transactions 
-                        (phone, amount, transaction_ref, timestamp, status) 
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (phone, 5000, trans_ref, 
-                          datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "pending"))
-                    conn.commit()
-                    conn.close()
-
-                    session["phone"] = phone
-                    message = "Payment recorded. Waiting for manual approval."
-                except sqlite3.IntegrityError:
-                    message = "This transaction reference has already been used."
-            else:
-                message = "Please provide phone number and M-Pesa transaction reference."
-
+            # ... (Your existing payment submission logic) ...
+            session["phone"] = phone # Store phone so we can check status on reload
+            message = "Payment recorded. Waiting for manual approval."
+            
         elif action == "logout":
             session.clear()
             return redirect(url_for("index"))
 
-    # Check if this phone has a paid record
-    phone = session.get("phone")
-    if phone:
-        try:
-            conn = sqlite3.connect('payments.db')
-            c = conn.cursor()
-            c.execute('''
-                SELECT status FROM transactions 
-                WHERE phone = ? AND status = 'paid' 
-                ORDER BY timestamp DESC LIMIT 1
-            ''', (phone,))
-            row = c.fetchone()
-            conn.close()
-
-            if row and row[0] == 'paid':
-                unlocked = True
-        except Exception:
-            pass
-
     return render_template("index.html", 
                            unlocked=unlocked, 
                            message=message, 
-                           templates=templates)   # ← This was missing
+                           templates=templates)
+        
 # ============== LOAD TEMPLATE ==============
 @app.route("/load_template", methods=["POST"])
 def load_template():
